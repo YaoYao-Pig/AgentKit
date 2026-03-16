@@ -196,6 +196,7 @@ def initialize_starter_project(
     project_name: str,
     profile_name: str = "minimal",
     force: bool = False,
+    generate_default_docs: bool = True,
 ) -> InitResult:
     if profile_name not in PROFILES:
         raise ValueError(f"unknown profile: {profile_name}")
@@ -287,7 +288,8 @@ def initialize_starter_project(
     if _render_text_file(gitkeep, "", force):
         generated.append(gitkeep)
 
-    generated.extend(_generate_default_docs(target_dir))
+    if generate_default_docs:
+        generated.extend(_generate_default_docs(target_dir))
 
     unique_paths = sorted({str(path) for path in generated})
     return InitResult(
@@ -296,3 +298,6 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
+

@@ -12,7 +12,7 @@ It provides reusable foundations:
 - Layered runtime skeleton
 - YAML-based configuration system
 - Agent-fillable document system (templates + lifecycle triggers + update strategies)
-- Initialization and one-step apply commands
+- Initialization, migration, and one-step apply commands
 - Examples and tests
 
 ## Core Capabilities
@@ -22,6 +22,7 @@ It provides reusable foundations:
 - Update strategies: `overwrite` / `append` / `snapshot` / `versioned`
 - Starter profiles: `minimal` / `extended`
 - Init command: `agentkit-init`
+- Migration command: `agentkit-migrate` (safe adoption for existing projects)
 - One-step command: `agentkit-apply` (initialize + apply customization spec)
 
 ## Install
@@ -38,13 +39,19 @@ pip install -e .
 agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
 ```
 
-### 2) Initialize + customize in one step
+### 2) Migrate an existing project (recommended)
+
+```bash
+agentkit-migrate --target . --name ExistingProject --profile minimal
+```
+
+### 3) Initialize + customize in one step
 
 ```bash
 agentkit-apply --target ./MyPipeline --name MyPipeline --profile extended --config examples/apply_spec.yaml --force
 ```
 
-### 3) Validate in the generated project
+### 4) Validate in the generated project
 
 ```bash
 cd MyPipeline
@@ -70,6 +77,22 @@ Please run automatically:
 2) agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
 3) In MyPipeline, run python -m pytest and python examples/mock_pipeline.py
 4) Summarize generated structure and key files
+```
+
+### Migrate Existing Project (safe mode)
+
+```text
+Please migrate this existing project to AgentKit in non-destructive mode:
+- target: .
+- name: ExistingProject
+- profile: minimal
+
+Please run automatically:
+1) pip install -e .
+2) agentkit-migrate --target . --name ExistingProject --profile minimal
+3) Keep existing README.md and AGENTS.md unchanged
+4) Generate *.starter.* sidecar files and docs/MIGRATION_REPORT.md
+5) Summarize new structure, conflicts, and recommended merge steps
 ```
 
 ### One-Step Init + Apply
@@ -101,6 +124,17 @@ What it does:
 - Copies runtime/config/template/example/test scaffolding
 - Generates default `README.md` / `AGENTS.md`
 - Generates starter docs in `docs/generated/`
+
+### `agentkit-migrate`
+
+```bash
+agentkit-migrate --target <existing-project-dir> [--name <project-name>] [--profile minimal|extended] [--no-sidecars]
+```
+
+What it does:
+- Adds AgentKit structure into an existing project without overwriting existing files by default
+- Generates `*.starter.*` sidecar files for key conflicts
+- Writes `docs/MIGRATION_REPORT.md` for migration audit and next steps
 
 ### `agentkit-apply`
 
@@ -185,7 +219,7 @@ Current test coverage includes:
 - document rendering
 - fill engine
 - runtime happy path + replan branch
-- starter init/apply flow
+- starter init/apply/migrate flow
 
 ## Design Principles
 
