@@ -1,3 +1,5 @@
+[![中文](https://img.shields.io/badge/Language-中文-blue)](README.md) [![English](https://img.shields.io/badge/Language-English-lightgrey)](README.en.md)
+
 # AgentKit Starter
 
 AgentKit Starter 是一个可迁移、可扩展的 Agent Pipeline 脚手架仓库。
@@ -46,6 +48,41 @@ cd MyPipeline
 pip install -e .
 python -m pytest
 python examples/mock_pipeline.py
+```
+
+## 直接给 Agent 的提示词
+
+你可以把下面提示词直接发给 Agent，让它自动完成初始化。
+
+### 初始化版（只生成脚手架）
+
+```text
+请使用 AgentKit 帮我初始化一个新项目：
+- target: ./MyPipeline
+- name: MyPipeline
+- profile: minimal
+
+请自动执行：
+1) pip install -e .
+2) agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
+3) 进入 MyPipeline 后运行 python -m pytest 和 python examples/mock_pipeline.py
+4) 输出最终生成的目录结构与关键文件说明
+```
+
+### 一步到位版（初始化 + 应用定制）
+
+```text
+请使用 AgentKit 一步完成项目初始化和定制：
+- target: ./MyPipeline
+- name: MyPipeline
+- profile: extended
+- apply spec: examples/apply_spec.yaml
+
+请自动执行：
+1) pip install -e .
+2) agentkit-apply --target ./MyPipeline --name MyPipeline --profile extended --config examples/apply_spec.yaml --force
+3) 进入 MyPipeline 后运行 python -m pytest 和 python examples/mock_pipeline.py
+4) 输出你修改了哪些 config/template，以及生成了哪些 docs
 ```
 
 ## 命令说明
