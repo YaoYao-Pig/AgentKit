@@ -17,5 +17,11 @@ def test_run_task_generates_required_artifacts(tmp_path: Path) -> None:
     assert Path(result.run_report_path).exists()
     assert result.generated_docs
 
+    task_model = (workspace / "docs" / "generated" / "task_model.md").read_text(encoding="utf-8")
+    assert "Affected Files/Modules" in task_model
+    assert "Validation Checklist" in task_model
+    assert "Rollback Plan" in task_model
+    assert "Risk Points" in task_model
+
     ok, missing = verify_task_run(workspace=str(workspace), task_id="sample-task-001")
     assert ok, f"missing artifacts: {missing}"

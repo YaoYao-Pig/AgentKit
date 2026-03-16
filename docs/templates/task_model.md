@@ -21,3 +21,15 @@ output_path: docs/generated/task_model.md
 
 ## Next Actions
 {{next_actions}}
+
+## Affected Files/Modules
+{{affected_files}}
+
+## Validation Checklist
+{{validation_checklist}}
+
+## Rollback Plan
+{{rollback_plan}}
+
+## Risk Points
+{{risk_points}}

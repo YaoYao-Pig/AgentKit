@@ -242,6 +242,7 @@ def initialize_starter_project(
         target_dir / "skills",
         target_dir / "examples",
         target_dir / "tests",
+        target_dir / ".github" / "workflows",
     ]
     for directory in required_dirs:
         _ensure_dir(directory)
@@ -250,7 +251,9 @@ def initialize_starter_project(
     generated.extend(
         _copy_tree_files(root / "src" / "agentkit" / "runtime", target_dir / "src" / "agentkit" / "runtime", force)
     )
-    generated.extend(_copy_tree_files(root / "src" / "agentkit" / "docs", target_dir / "src" / "agentkit" / "docs", force))
+    generated.extend(
+        _copy_tree_files(root / "src" / "agentkit" / "docs", target_dir / "src" / "agentkit" / "docs", force)
+    )
     generated.extend(
         _copy_tree_files(root / "src" / "agentkit" / "config", target_dir / "src" / "agentkit" / "config", force)
     )
@@ -272,15 +275,14 @@ def initialize_starter_project(
         if _copy_file(root / "configs" / file_name, target_dir / "configs" / file_name, force):
             generated.append(target_dir / "configs" / file_name)
 
-    template_files = [
+    for file_name in [
         "project_charter.md",
         "task_model.md",
         "decision_log.md",
         "risk_register.md",
         "milestone_report.md",
         "handoff_note.md",
-    ]
-    for file_name in template_files:
+    ]:
         if _copy_file(root / "docs" / "templates" / file_name, target_dir / "docs" / "templates" / file_name, force):
             generated.append(target_dir / "docs" / "templates" / file_name)
 
@@ -312,6 +314,11 @@ def initialize_starter_project(
     if _copy_file(root / ".gitignore", target_dir / ".gitignore", force):
         generated.append(target_dir / ".gitignore")
 
+    workflow_src = root / ".github" / "workflows" / "agentkit-ci.yml"
+    workflow_dst = target_dir / ".github" / "workflows" / "agentkit-ci.yml"
+    if workflow_src.exists() and _copy_file(workflow_src, workflow_dst, force):
+        generated.append(workflow_dst)
+
     if _render_text_file(target_dir / "README.md", ROOT_README_TEMPLATE.format(project_name=project_name), force):
         generated.append(target_dir / "README.md")
     if _render_text_file(target_dir / "AGENTS.md", ROOT_AGENTS_TEMPLATE, force):
@@ -333,19 +340,3 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -16,3 +16,15 @@ skills:
     adapter: python_callable
     module: agentkit.runtime.sample_skills
     function: health_check
+
+  run_tests:
+    purpose: run project tests
+    risk_level: low
+    adapter: shell
+    command: "python -m pytest -q"
+
+  run_lint:
+    purpose: run basic lint checks
+    risk_level: low
+    adapter: shell
+    command: "python -m compileall src"

@@ -2,29 +2,15 @@
 
 # AgentKit Starter
 
-AgentKit Starter is a migration-friendly, extensible scaffold for Agent Pipeline projects.
+AgentKit Starter is a migration-friendly scaffold for Agent Pipeline projects.
 
-It provides:
-- layered runtime skeleton
-- YAML configuration system
-- agent-fillable docs system (templates + lifecycle triggers + update strategies)
-- init/migrate/apply commands
-- enforced task execution entry (run/verify)
+## What you get
 
-## Core Commands
-
-- `agentkit-init`: initialize a new project
-- `agentkit-migrate`: non-destructive adoption for existing projects
-- `agentkit-apply`: initialize and apply customization spec
-- `agentkit-run`: run a task through enforced pipeline
-- `agentkit-verify`: verify required task artifacts
-
-Module command form is also supported:
-
-```bash
-python -m agentkit run --workspace . --task examples/task.sample.yaml
-python -m agentkit verify --workspace . --task-id sample-task-001
-```
+- Enforced task entry: `agentkit-run`
+- Artifact gate: `agentkit-verify`
+- Runtime artifacts: `.agentkit/context|state|runs`
+- Automatic docs updates: `docs/generated/*`
+- Pluggable tool execution: `skills_index.yaml` + adapter dispatcher
 
 ## Install
 
@@ -34,56 +20,41 @@ pip install -e .
 
 ## Quick Start
 
-### 1) Initialize a new project
-
 ```bash
 agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
-```
-
-### 2) Migrate an existing project (recommended)
-
-```bash
-agentkit-migrate --target . --name ExistingProject --profile minimal
-```
-
-### 3) Initialize + customize in one step
-
-```bash
-agentkit-apply --target ./MyPipeline --name MyPipeline --profile extended --config examples/apply_spec.yaml --force
-```
-
-### 4) Run tasks through enforced entry
-
-```bash
+cd MyPipeline
+pip install -e .
 agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 ```
 
-## Task Spec
+## Enforced execution model
 
-Sample file: `examples/task.sample.yaml`
+- `agentkit-run` is the required runtime task entry
+- `agentkit-verify` is the required artifact gate
+- CI should enforce verify as required (workflow included: `.github/workflows/agentkit-ci.yml`)
 
-```yaml
-id: sample-task-001
-goal: Verify the AgentKit runtime pipeline entry works
-action:
-  type: mock_action
-  params:
-    note: hello
-context:
-  module_hints:
-    - runtime
-```
+## Task Spec (implementation-driving fields)
 
-## Custom Tool Integration (Adapters)
+See `examples/task.sample.yaml`.
 
-Teams can implement concrete tooling in Python/Shell and register skills in `configs/skills_index.yaml`:
+Key fields:
+- `affected_files`
+- `validation_checklist`
+- `rollback_plan`
+- `risk_points`
+
+These fields are persisted and rendered into `docs/generated/task_model.md`.
+
+## Custom tools (Adapters)
+
+Declare skills in `configs/skills_index.yaml`:
 
 ```yaml
 skills:
-  run_shell_echo:
+  run_tests:
     adapter: shell
-    command: "echo {message}"
+    command: "python -m pytest -q"
 
   python_health_check:
     adapter: python_callable
@@ -91,47 +62,21 @@ skills:
     function: health_check
 ```
 
-When planner emits matching `action_type`, dispatcher routes to the configured adapter.
-
 ## Context Selector
 
-Use `ContextSelector` to avoid overloading model context with full repository documents.
-
-```python
-from agentkit.runtime.context_selector import ContextSelector, ContextSelectionRequest
-
-selector = ContextSelector(max_chars_per_file=1200)
-result = selector.select(ContextSelectionRequest(base_dir='.', task_type='feature', goal='x', module_hints=['runtime']))
-```
-
-CLI example:
+Use `ContextSelector` to control context size and relevance.
 
 ```bash
 python examples/context_selection_demo.py
 ```
 
-## Prompt Template for Agents (Enforced Entry)
+## Other commands
 
-```text
-Run this task through AgentKit enforced entry:
-1) agentkit-run --workspace . --task <task.yaml>
-2) agentkit-verify --workspace . --task-id <task-id>
-3) Report artifacts under .agentkit/state, .agentkit/runs, .agentkit/context, and docs/generated
-4) Task is not complete until verify passes
-```
+- `agentkit-migrate`: non-destructive adoption for existing projects
+- `agentkit-apply`: initialize and apply customization spec
 
-## References
-
-- `docs/BOOTSTRAP.md`
-- `docs/STARTER.md`
-- `docs/EXAMPLE_GENERATED_OUTPUT.md`
-
-## Development and Tests
+## Tests
 
 ```bash
 python -m pytest
 ```
-
-## License
-
-MIT (recommended: add a root `LICENSE` file)

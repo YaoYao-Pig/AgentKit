@@ -20,6 +20,8 @@ def test_config_schema_loading() -> None:
     assert config.runtime.max_steps > 0
     assert "mock_action" in config.skills_index.skills
     assert config.skills_index.skills["mock_action"].adapter == "mock"
+    assert "run_tests" in config.skills_index.skills
+    assert "run_lint" in config.skills_index.skills
 
 
 def test_template_metadata_schema_requires_title(tmp_path: Path) -> None:

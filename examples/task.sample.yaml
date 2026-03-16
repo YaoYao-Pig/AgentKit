@@ -10,6 +10,18 @@ success_criteria:
 input_sources:
   - configs/
   - docs/templates/
+affected_files:
+  - src/agentkit/runtime/
+  - docs/templates/task_model.md
+validation_checklist:
+  - python -m pytest passes
+  - agentkit-verify passes
+rollback_plan:
+  - revert commit if verify fails
+  - restore previous docs/generated snapshots
+risk_points:
+  - command adapter behavior differs by shell environment
+  - strict template rendering fails on missing fields
 action:
   type: mock_action
   params:

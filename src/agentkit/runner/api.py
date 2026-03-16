@@ -55,6 +55,17 @@ def _to_task(spec: TaskRunSpec) -> Task:
     )
 
 
+def _task_spec_metadata(spec: TaskRunSpec) -> dict[str, object]:
+    return {
+        "affected_files": spec.affected_files,
+        "validation_checklist": spec.validation_checklist,
+        "rollback_plan": spec.rollback_plan,
+        "risk_points": spec.risk_points,
+        "module_hints": spec.module_hints,
+        "action_type": spec.action_type,
+    }
+
+
 def _build_engine(workspace: Path, spec: TaskRunSpec) -> DefaultPipelineEngine:
     config = load_full_config(str(workspace / "configs"))
     planner = MinimalPlanner(
@@ -150,6 +161,10 @@ def _write_run_report(workspace: Path, spec: TaskRunSpec, outcome: RuntimeOutcom
         "retries": outcome.state.retries,
         "context_report": context_path,
         "generated_docs": docs,
+        "affected_files": spec.affected_files,
+        "validation_checklist": spec.validation_checklist,
+        "rollback_plan": spec.rollback_plan,
+        "risk_points": spec.risk_points,
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(out_path)
@@ -167,6 +182,7 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
     task = _to_task(spec)
     outcome = engine.run(task)
 
+    outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
     state_path = _write_state(workspace_path, outcome)
     docs = _update_docs(workspace_path, task, outcome)
     run_report = _write_run_report(workspace_path, spec, outcome, docs, context_report)

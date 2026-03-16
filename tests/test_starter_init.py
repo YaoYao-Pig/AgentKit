@@ -21,6 +21,7 @@ def test_initialize_minimal_profile(tmp_path: Path) -> None:
 
     assert (target / "README.md").exists()
     assert (target / "src" / "agentkit" / "runner" / "api.py").exists()
+    assert (target / ".github" / "workflows" / "agentkit-ci.yml").exists()
     assert (target / "examples" / "task.sample.yaml").exists()
     assert (target / "AGENTS.md").exists()
     assert (target / "docs" / "CUSTOMIZATION.md").exists()

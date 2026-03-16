@@ -2,29 +2,15 @@
 
 # AgentKit Starter
 
-AgentKit Starter 是一个可迁移、可扩展的 Agent Pipeline 脚手架仓库。
+AgentKit Starter 是一个可迁移、可扩展的 Agent Pipeline 脚手架。
 
-它提供：
-- 分层 runtime skeleton
-- 配置系统（YAML）
-- 可填充文档系统（模板 + 生命周期触发 + 更新策略）
-- 初始化/迁移/应用命令
-- 强制任务执行入口（run/verify）
+## 你现在能得到什么
 
-## 核心命令
-
-- `agentkit-init`：初始化新项目
-- `agentkit-migrate`：已有项目非破坏接入
-- `agentkit-apply`：初始化后应用定制 spec
-- `agentkit-run`：强制通过 Pipeline 运行任务
-- `agentkit-verify`：校验任务产物是否齐全
-
-也支持模块命令：
-
-```bash
-python -m agentkit run --workspace . --task examples/task.sample.yaml
-python -m agentkit verify --workspace . --task-id sample-task-001
-```
+- 统一任务入口：`agentkit-run`
+- 任务产物校验：`agentkit-verify`
+- 状态与审计产物：`.agentkit/context|state|runs`
+- 自动文档更新：`docs/generated/*`
+- 可插拔工具能力：`skills_index.yaml` + adapter dispatcher
 
 ## 安装
 
@@ -34,56 +20,41 @@ pip install -e .
 
 ## 快速开始
 
-### 1) 初始化新项目
-
 ```bash
 agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
-```
-
-### 2) 迁移已有项目（推荐）
-
-```bash
-agentkit-migrate --target . --name ExistingProject --profile minimal
-```
-
-### 3) 一步到位初始化 + 定制
-
-```bash
-agentkit-apply --target ./MyPipeline --name MyPipeline --profile extended --config examples/apply_spec.yaml --force
-```
-
-### 4) 通过强制入口运行任务
-
-```bash
+cd MyPipeline
+pip install -e .
 agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 ```
 
-## 任务规范（Task Spec）
+## 强制入口说明
 
-示例文件：`examples/task.sample.yaml`
+- `agentkit-run`：必须通过它启动任务执行链
+- `agentkit-verify`：必须通过它校验任务产物是否齐全
+- 推荐在 CI 中把 `agentkit-verify` 设为必过项（仓库已提供 `.github/workflows/agentkit-ci.yml`）
 
-```yaml
-id: sample-task-001
-goal: Verify the AgentKit runtime pipeline entry works
-action:
-  type: mock_action
-  params:
-    note: hello
-context:
-  module_hints:
-    - runtime
-```
+## Task Spec（实现驱动字段）
 
-## 自定义工具接入（Adapter）
+示例：`examples/task.sample.yaml`
 
-你可以自己写 Python/Shell 工具脚本，然后在 `configs/skills_index.yaml` 声明绑定：
+关键字段：
+- `affected_files`
+- `validation_checklist`
+- `rollback_plan`
+- `risk_points`
+
+这些字段会进入状态与 `docs/generated/task_model.md`，用于约束实现路线。
+
+## 自定义工具（Adapter）
+
+在 `configs/skills_index.yaml` 声明 skill：
 
 ```yaml
 skills:
-  run_shell_echo:
+  run_tests:
     adapter: shell
-    command: "echo {message}"
+    command: "python -m pytest -q"
 
   python_health_check:
     adapter: python_callable
@@ -91,47 +62,21 @@ skills:
     function: health_check
 ```
 
-当 Planner 输出对应 `action_type` 时，Dispatcher 会自动路由到 adapter。
+## 上下文选择器
 
-## 上下文选择器（Context Selector）
-
-用于控制上下文大小，避免全量文档污染模型输入。
-
-```python
-from agentkit.runtime.context_selector import ContextSelector, ContextSelectionRequest
-
-selector = ContextSelector(max_chars_per_file=1200)
-result = selector.select(ContextSelectionRequest(base_dir='.', task_type='feature', goal='x', module_hints=['runtime']))
-```
-
-CLI 示例：
+使用 `ContextSelector` 控制上下文规模，避免全量文档污染模型输入。
 
 ```bash
 python examples/context_selection_demo.py
 ```
 
-## 给 Agent 的提示词（强制入口）
+## 其他命令
 
-```text
-请按 AgentKit 强制入口执行本任务：
-1) 先运行 agentkit-run --workspace . --task <task.yaml>
-2) 再运行 agentkit-verify --workspace . --task-id <task-id>
-3) 输出 .agentkit/state、.agentkit/runs、.agentkit/context 和 docs/generated 的产物清单
-4) 未通过 verify 前，不视为任务完成
-```
+- `agentkit-migrate`：已有项目非破坏接入
+- `agentkit-apply`：初始化并应用定制 spec
 
-## 参考文档
-
-- `docs/BOOTSTRAP.md`
-- `docs/STARTER.md`
-- `docs/EXAMPLE_GENERATED_OUTPUT.md`
-
-## 开发与测试
+## 测试
 
 ```bash
 python -m pytest
 ```
-
-## License
-
-MIT（建议补充根目录 `LICENSE` 文件）

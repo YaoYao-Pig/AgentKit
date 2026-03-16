@@ -25,6 +25,11 @@ def _list_to_markdown(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
+def _task_spec(payload: RuntimeDocumentInput) -> dict[str, object]:
+    raw = payload.state.metadata.get("task_spec", {})
+    return raw if isinstance(raw, dict) else {}
+
+
 def _build_project_charter(payload: RuntimeDocumentInput) -> dict[str, object]:
     return {
         "task_id": payload.task.id,
@@ -38,12 +43,22 @@ def _build_project_charter(payload: RuntimeDocumentInput) -> dict[str, object]:
 
 def _build_task_model(payload: RuntimeDocumentInput) -> dict[str, object]:
     actions = [f"{record.action.action_type}:{record.action.id}" for record in payload.state.records]
+    spec = _task_spec(payload)
+    affected = [str(x) for x in spec.get("affected_files", [])]
+    checklist = [str(x) for x in spec.get("validation_checklist", [])]
+    rollback = [str(x) for x in spec.get("rollback_plan", [])]
+    risks = [str(x) for x in spec.get("risk_points", [])]
+
     return {
         "task_id": payload.task.id,
         "goal": payload.task.goal,
         "current_phase": payload.state.current_phase,
         "status": payload.state.status.value,
         "next_actions": _list_to_markdown(actions),
+        "affected_files": _list_to_markdown(affected),
+        "validation_checklist": _list_to_markdown(checklist),
+        "rollback_plan": _list_to_markdown(rollback),
+        "risk_points": _list_to_markdown(risks),
     }
 
 
