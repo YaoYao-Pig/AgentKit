@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+docs/generated/*.md
+!docs/generated/.gitkeep
+
+AGENTS.md
+PLANS.md

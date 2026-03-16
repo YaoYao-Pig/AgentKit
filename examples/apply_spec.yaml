@@ -1,0 +1,38 @@
+configs:
+  module_rules:
+    allowed_paths:
+      - src/
+      - configs/
+      - docs/
+      - tests/
+      - skills/
+    disallowed_dependencies:
+      - from: ui
+        to: persistence
+  skills_index:
+    skills:
+      read_local_files:
+        purpose: read workspace files
+        risk_level: low
+      write_local_files:
+        purpose: write workspace files
+        risk_level: medium
+      lint_project:
+        purpose: run lints in CI
+        risk_level: low
+
+templates:
+  handoff_note:
+    metadata:
+      owner_agent: delivery_team_agent
+      output_path: docs/generated/team_handoff.md
+    body_append: |
+      ## Team Contacts
+      - owner: platform-team
+
+  project_charter:
+    metadata:
+      title: Team Project Charter
+
+docs:
+  regenerate: true

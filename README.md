@@ -1,0 +1,162 @@
+# AgentKit Starter
+
+AgentKit Starter 是一个可迁移、可扩展的 Agent Pipeline 脚手架仓库。
+
+它不是业务应用，不绑定单一厂商，不假设单一运行时。
+它提供一套可复用基础：
+- 分层 runtime skeleton
+- 配置系统（YAML）
+- 可填充文档系统（模板 + 生命周期触发 + 更新策略）
+- 初始化与一键应用命令
+- 示例与测试
+
+## 核心能力
+
+- Runtime 六层骨架：Identity / Capability / Planning / Execution / Validation / State
+- 文档子系统：registry + metadata schema + markdown loader + renderer + writer + fill engine
+- 更新策略：`overwrite` / `append` / `snapshot` / `versioned`
+- Starter profile：`minimal` / `extended`
+- 初始化命令：`agentkit-init`
+- 一步到位命令：`agentkit-apply`（初始化 + 应用定制 spec）
+
+## 安装
+
+```bash
+pip install -e .
+```
+
+## 快速开始
+
+### 1) 初始化新项目
+
+```bash
+agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
+```
+
+### 2) 一步到位初始化 + 定制
+
+```bash
+agentkit-apply --target ./MyPipeline --name MyPipeline --profile extended --config examples/apply_spec.yaml --force
+```
+
+### 3) 在生成项目中验证
+
+```bash
+cd MyPipeline
+pip install -e .
+python -m pytest
+python examples/mock_pipeline.py
+```
+
+## 命令说明
+
+### `agentkit-init`
+
+```bash
+agentkit-init --target <dir> --name <project-name> [--profile minimal|extended] [--force]
+```
+
+作用：
+- 生成标准项目结构
+- 拷贝 runtime/config/template/example/tests
+- 生成默认 `README.md` / `AGENTS.md`
+- 生成 starter 文档到 `docs/generated/`
+
+### `agentkit-apply`
+
+```bash
+agentkit-apply --target <dir> --name <project-name> [--profile minimal|extended] [--config <yaml>] [--force]
+```
+
+作用：
+- 先执行 init
+- 再按 YAML spec 覆盖配置和模板
+- 自动重新生成 starter 文档
+
+## Apply Spec（定制规范）
+
+参考文件：`examples/apply_spec.yaml`
+
+支持的顶层字段：
+- `configs`: 覆盖 `system_profile|skills_index|policy_rules|module_rules|runtime`
+- `templates`: 按文档 id 覆盖 metadata/body
+- `docs.regenerate`: 是否重新生成 `docs/generated/*`
+
+示例：
+
+```yaml
+configs:
+  module_rules:
+    allowed_paths: ["src/", "docs/"]
+
+templates:
+  handoff_note:
+    metadata:
+      output_path: docs/generated/custom_handoff.md
+    body_append: |
+      ## Extra
+      - team: platform
+
+docs:
+  regenerate: true
+```
+
+## 生成项目结构
+
+初始化后默认包含：
+
+```text
+<project>/
+  src/agentkit/
+    runtime/
+    docs/
+    config/
+  configs/
+  docs/
+    templates/
+    generated/
+  skills/
+  examples/
+  tests/
+  README.md
+  AGENTS.md
+```
+
+## 下游团队如何定制
+
+1. 模块边界与依赖规则：`configs/module_rules.yaml`
+2. 技能目录与风险等级：`configs/skills_index.yaml`
+3. 文档模板与生命周期：`docs/templates/*.md`
+4. 文档输出路径：模板 `output_path` 或 registry override
+5. 运行时行为：替换 `src/agentkit/runtime/layers/*`
+
+详见：
+- `docs/BOOTSTRAP.md`
+- `docs/STARTER.md`
+- `docs/EXAMPLE_GENERATED_OUTPUT.md`
+
+## 开发与测试
+
+```bash
+python -m pytest
+```
+
+当前测试覆盖：
+- schema validation
+- registry loading
+- document rendering
+- fill engine
+- runtime happy path + replan branch
+- starter init/apply flow
+
+## 设计原则
+
+- 配置驱动优先于硬编码
+- 模块解耦，避免循环依赖
+- 类型化 schema 优先于松散字典
+- 保持 policy/skill/store/renderer/registry 可插拔
+- 不引入业务特定逻辑
+
+## License
+
+MIT（如需发布到 GitHub，建议在根目录补充 `LICENSE` 文件）
