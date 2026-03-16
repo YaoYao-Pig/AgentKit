@@ -12,8 +12,19 @@ class SystemProfileConfig:
 
 
 @dataclass(slots=True)
+class SkillConfig:
+    purpose: str
+    risk_level: str = "low"
+    adapter: str = "mock"
+    command: str | None = None
+    module: str | None = None
+    function: str | None = None
+    static_params: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
 class SkillsIndexConfig:
-    skills: dict[str, dict[str, Any]]
+    skills: dict[str, SkillConfig]
 
 
 @dataclass(slots=True)

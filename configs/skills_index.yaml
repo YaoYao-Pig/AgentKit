@@ -1,10 +1,18 @@
 skills:
-  read_local_files:
-    purpose: read workspace files
+  mock_action:
+    purpose: default no-op action for starter flow
     risk_level: low
-  write_local_files:
-    purpose: write workspace files
-    risk_level: medium
-  run_tests:
-    purpose: run verification checks
+    adapter: mock
+
+  run_shell_echo:
+    purpose: run a shell command template
     risk_level: low
+    adapter: shell
+    command: "echo {message}"
+
+  python_health_check:
+    purpose: execute Python callable skill
+    risk_level: low
+    adapter: python_callable
+    module: agentkit.runtime.sample_skills
+    function: health_check

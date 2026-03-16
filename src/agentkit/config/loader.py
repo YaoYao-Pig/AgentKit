@@ -9,6 +9,7 @@ from .models import (
     ModuleRulesConfig,
     PolicyRulesConfig,
     RuntimeConfig,
+    SkillConfig,
     SkillsIndexConfig,
     SystemProfileConfig,
 )
@@ -21,10 +22,23 @@ def _load_yaml(path: str) -> dict:
     return data
 
 
+def _parse_skills(raw: dict) -> SkillsIndexConfig:
+    raw_skills = raw.get("skills", {})
+    if not isinstance(raw_skills, dict):
+        raise ValueError("skills_index.skills must be a mapping")
+
+    parsed: dict[str, SkillConfig] = {}
+    for name, value in raw_skills.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"skill '{name}' must be a mapping")
+        parsed[name] = SkillConfig(**value)
+    return SkillsIndexConfig(skills=parsed)
+
+
 def load_full_config(config_dir: str) -> FullConfig:
     base = Path(config_dir)
     system_profile = SystemProfileConfig(**_load_yaml(str(base / "system_profile.yaml")))
-    skills_index = SkillsIndexConfig(**_load_yaml(str(base / "skills_index.yaml")))
+    skills_index = _parse_skills(_load_yaml(str(base / "skills_index.yaml")))
     policy_rules = PolicyRulesConfig(**_load_yaml(str(base / "policy_rules.yaml")))
     module_rules = ModuleRulesConfig(**_load_yaml(str(base / "module_rules.yaml")))
     runtime = RuntimeConfig(**_load_yaml(str(base / "runtime.yaml")))

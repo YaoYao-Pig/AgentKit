@@ -32,7 +32,8 @@ This project was bootstrapped from AgentKit starter.
 ```bash
 pip install -e .
 python -m pytest
-python examples/mock_pipeline.py
+agentkit-run --workspace . --task examples/task.sample.yaml
+agentkit-verify --workspace . --task-id sample-task-001
 ```
 
 ## Project Layout
@@ -77,7 +78,8 @@ This repository is a reusable agent pipeline project scaffold.
    - decision_log
    - handoff_note
 5. For destructive/high-risk actions, request human approval first.
-6. Final output must include:
+6. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
+7. Final output must include:
    - changed files
    - evidence references
    - remaining risks/todos
@@ -108,6 +110,11 @@ Edit files in `docs/templates/`:
 
 ## 4) Output Paths
 Override output paths during registry loading (code example in `examples/customize_starter.py`).
+
+## 5) Tool Adapters and Skills
+Edit `configs/skills_index.yaml` to bind action types to adapters (`mock`, `shell`, `python_callable`).
+- shell skills use `command` templates
+- python_callable skills use `module` + `function`
 """
 
 CUSTOMIZE_EXAMPLE = """from __future__ import annotations
@@ -247,8 +254,11 @@ def initialize_starter_project(
     generated.extend(
         _copy_tree_files(root / "src" / "agentkit" / "config", target_dir / "src" / "agentkit" / "config", force)
     )
+    generated.extend(
+        _copy_tree_files(root / "src" / "agentkit" / "runner", target_dir / "src" / "agentkit" / "runner", force)
+    )
 
-    for file_name in ["__init__.py"]:
+    for file_name in ["__init__.py", "__main__.py"]:
         if _copy_file(root / "src" / "agentkit" / file_name, target_dir / "src" / "agentkit" / file_name, force):
             generated.append(target_dir / "src" / "agentkit" / file_name)
 
@@ -274,8 +284,9 @@ def initialize_starter_project(
         if _copy_file(root / "docs" / "templates" / file_name, target_dir / "docs" / "templates" / file_name, force):
             generated.append(target_dir / "docs" / "templates" / file_name)
 
-    if _copy_file(root / "examples" / "mock_pipeline.py", target_dir / "examples" / "mock_pipeline.py", force):
-        generated.append(target_dir / "examples" / "mock_pipeline.py")
+    for example_name in ["mock_pipeline.py", "task.sample.yaml", "context_selection_demo.py", "apply_spec.yaml"]:
+        if _copy_file(root / "examples" / example_name, target_dir / "examples" / example_name, force):
+            generated.append(target_dir / "examples" / example_name)
 
     if profile.include_extra_example:
         if _render_text_file(target_dir / "examples" / "customize_starter.py", CUSTOMIZE_EXAMPLE, force):
@@ -289,6 +300,9 @@ def initialize_starter_project(
             "test_fill_engine.py",
             "test_runtime_happy_path.py",
             "test_runtime_replan_branch.py",
+            "test_runtime_dispatcher.py",
+            "test_context_selector.py",
+            "test_runner_pipeline.py",
         ]:
             if _copy_file(root / "tests" / file_name, target_dir / "tests" / file_name, force):
                 generated.append(target_dir / "tests" / file_name)
@@ -319,6 +333,18 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

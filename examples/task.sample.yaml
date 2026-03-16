@@ -1,0 +1,20 @@
+id: sample-task-001
+title: Sample Task
+goal: Verify the AgentKit runtime pipeline entry works
+constraints:
+  - follow AGENTS protocol
+  - keep changes minimal
+success_criteria:
+  - runtime executes successfully
+  - state and docs artifacts are generated
+input_sources:
+  - configs/
+  - docs/templates/
+action:
+  type: mock_action
+  params:
+    note: hello-from-task-spec
+context:
+  module_hints:
+    - runtime
+    - docs
