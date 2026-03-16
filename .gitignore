@@ -9,3 +9,5 @@ AGENTS.md
 PLANS.md
 
 .agentkit/
+
+*.egg-info/
