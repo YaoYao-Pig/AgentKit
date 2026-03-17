@@ -44,6 +44,67 @@ agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 ```
 
+## 项目应该放在哪里（目录示例）
+
+很多新用户会卡在“这些命令在哪个目录执行”。下面给两个常见场景。
+
+### 场景 A：你要新建一个项目
+
+建议目录结构：
+
+```text
+D:/Work/
+  AgentKit/                  # 这个仓库（脚手架源码）
+  MyPipelineProject/         # 你生成出来的新项目
+```
+
+操作方式：
+
+1. 先进入 AgentKit 仓库执行初始化命令：
+
+```bash
+cd D:/Work/AgentKit
+agentkit-init --target ../MyPipelineProject --name MyPipelineProject --profile minimal
+```
+
+2. 再进入你自己的项目目录执行后续命令：
+
+```bash
+cd D:/Work/MyPipelineProject
+pip install -e .
+agentkit-serve --workspace . --require-token --token dev-agentkit-token
+```
+
+关键点：
+- `agentkit-init` 在脚手架仓库里运行。
+- `agentkit-run / verify / serve` 在目标项目根目录运行。
+
+### 场景 B：你已经有一个现成项目
+
+假设你的旧项目在：
+
+```text
+D:/Work/LegacyProject/
+```
+
+则直接在该目录执行迁移：
+
+```bash
+cd D:/Work/LegacyProject
+agentkit-migrate --target . --name LegacyProject --profile minimal
+```
+
+迁移后，后续所有 AgentKit 命令都在 `LegacyProject` 根目录执行，不需要再回到脚手架仓库。
+
+### 如何快速确认“我在正确目录”
+
+你只要确认当前目录里至少有这些文件/目录：
+- `configs/`
+- `docs/templates/`
+- `examples/`
+- `pyproject.toml`
+
+如果这些不存在，通常说明你不在目标项目根目录。
 ## API 强制模式（推荐生产使用）
 
 ## 1) 配置 API 服务
@@ -353,5 +414,6 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
 
