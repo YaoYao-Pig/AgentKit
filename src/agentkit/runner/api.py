@@ -173,11 +173,12 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _extract_codegen_payload(outcome: RuntimeOutcome) -> tuple[str, list[dict[str, object]]]:
+def _extract_codegen_payload(outcome: RuntimeOutcome, runtime) -> tuple[str, list[dict[str, object]], dict[str, str]]:
     if not outcome.state.records:
         raise ValueError("strict_codegen_mode expected at least one execution record")
 
-    response = outcome.state.records[-1].result.output.get("response")
+    last_output = outcome.state.records[-1].result.output
+    response = last_output.get("response")
     if not isinstance(response, dict):
         raise ValueError("strict_codegen_mode expected llm response payload")
 
@@ -188,6 +189,31 @@ def _extract_codegen_payload(outcome: RuntimeOutcome) -> tuple[str, list[dict[st
     patches = response.get("patches")
     if not isinstance(patches, list) or not patches:
         raise ValueError("strict_codegen_mode requires llm response.patches (non-empty list)")
+
+    provenance = response.get("provenance")
+    if not isinstance(provenance, dict):
+        provenance = {}
+
+    endpoint = str(last_output.get("endpoint") or "").strip()
+    origin = {
+        "endpoint": endpoint,
+        "provider": str(provenance.get("provider") or "").strip(),
+        "model": str(provenance.get("model") or "").strip(),
+        "response_id": str(provenance.get("response_id") or "").strip(),
+        "generated_by": str(provenance.get("generated_by") or "").strip(),
+    }
+
+    if runtime.strict_production_mode:
+        missing = [key for key in ["provider", "model", "response_id", "generated_by"] if not origin[key]]
+        if missing:
+            raise ValueError(
+                "strict_production_mode requires llm response provenance fields: "
+                + ", ".join(missing)
+            )
+        if origin["generated_by"] != "api_remote_agent":
+            raise ValueError(
+                "strict_production_mode requires provenance.generated_by='api_remote_agent'"
+            )
 
     normalized: list[dict[str, object]] = []
     for idx, item in enumerate(patches):
@@ -200,7 +226,7 @@ def _extract_codegen_payload(outcome: RuntimeOutcome) -> tuple[str, list[dict[st
             raise ValueError(f"strict_codegen_mode patch[{idx}] missing path")
         normalized.append({"path": path, "content": content, "mode": mode})
 
-    return request_id, normalized
+    return request_id, normalized, origin
 
 
 def _read_task_ledger(path: Path) -> dict[str, object]:
@@ -229,7 +255,7 @@ def _collect_all_touched_files(workspace: Path) -> set[str]:
 
 
 def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome: RuntimeOutcome) -> dict[str, object]:
-    request_id, patches = _extract_codegen_payload(outcome)
+    request_id, patches, origin = _extract_codegen_payload(outcome, config.runtime)
 
     skill = config.skills_index.skills.get("apply_generated_patch")
     if skill is None:
@@ -298,7 +324,12 @@ def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome
         len(patch_entries),
         len(ledger["rounds"]),
     )
-    return {"ledger_path": str(out_path), "request_id": request_id, "touched_files": ledger["touched_files"]}
+    return {
+        "ledger_path": str(out_path),
+        "request_id": request_id,
+        "touched_files": ledger["touched_files"],
+        "origin": origin,
+    }
 
 
 def _collect_outcome_error_events(outcome: RuntimeOutcome) -> list:
@@ -342,8 +373,10 @@ def _write_run_report(
         "risk_points": spec.risk_points,
         "strict_codegen_mode": bool(outcome.state.metadata.get("strict_codegen_mode", False)),
         "strict_industrial_mode": bool(outcome.state.metadata.get("strict_industrial_mode", False)),
+        "strict_production_mode": bool(outcome.state.metadata.get("strict_production_mode", False)),
         "patch_ledger": outcome.state.metadata.get("patch_ledger"),
         "patch_request_id": outcome.state.metadata.get("patch_request_id"),
+        "patch_origin": outcome.state.metadata.get("patch_origin"),
         "error_report": error_report_path,
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -488,11 +521,12 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
                     )
 
         logger.info(
-            "task run started task_id=%s action_type=%s strict_codegen=%s strict_industrial=%s workspace=%s",
+            "task run started task_id=%s action_type=%s strict_codegen=%s strict_industrial=%s strict_production=%s workspace=%s",
             spec.id,
             action_type,
             config.runtime.strict_codegen_mode,
             config.runtime.strict_industrial_mode,
+            config.runtime.strict_production_mode,
             workspace_path,
         )
 
@@ -506,12 +540,14 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
         outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
         outcome.state.metadata["strict_codegen_mode"] = config.runtime.strict_codegen_mode
         outcome.state.metadata["strict_industrial_mode"] = config.runtime.strict_industrial_mode
+        outcome.state.metadata["strict_production_mode"] = config.runtime.strict_production_mode
 
         if config.runtime.strict_codegen_mode and outcome.status.value == "COMPLETED":
             protocol = _apply_generated_patches(workspace_path, config, spec, outcome)
             outcome.state.metadata["patch_ledger"] = protocol["ledger_path"]
             outcome.state.metadata["patch_request_id"] = protocol["request_id"]
             outcome.state.metadata["patch_touched_files"] = protocol["touched_files"]
+            outcome.state.metadata["patch_origin"] = protocol.get("origin", {})
 
         error_events = _collect_outcome_error_events(outcome)
         error_report_path = ""
@@ -584,6 +620,11 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
                     missing.append(f"manual edit detected outside API patch ledger: {changed_file}")
 
     return (len(missing) == 0, missing)
+
+
+
+
+
 
 
 

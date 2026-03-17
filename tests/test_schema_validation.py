@@ -25,6 +25,7 @@ def test_config_schema_loading() -> None:
     assert config.runtime.llm_api_key_env
     assert config.runtime.llm_endpoint_timeout_sec > 0
     assert isinstance(config.runtime.strict_industrial_auto_init_git, bool)
+    assert isinstance(config.runtime.strict_production_mode, bool)
     assert "mock_action" in config.skills_index.skills
     assert config.skills_index.skills["mock_action"].adapter == "mock"
     assert "run_tests" in config.skills_index.skills
@@ -61,6 +62,8 @@ Body
         assert False, "expected metadata validation error"
     except KeyError:
         assert True
+
+
 
 
 

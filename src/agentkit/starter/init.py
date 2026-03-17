@@ -137,6 +137,7 @@ Edit `configs/runtime.yaml`:
 - `strict_codegen_mode`: require llm codegen path for code-writing tasks
 - `strict_industrial_mode`: block run/verify if protected code paths contain edits not backed by API patch ledger
 - `strict_industrial_auto_init_git`: auto `git init` + baseline commit when strict industrial mode is enabled
+- `strict_production_mode`: require remote codegen endpoint + provenance metadata from API response
 - `llm_api_key_env`: required API key env var name
 - `api_log_to_file` / `api_log_file`: persist serve logs for debugging
 """
@@ -341,6 +342,7 @@ def initialize_starter_project(
             "test_runtime_codegen_flow.py",
             "test_runner_env_check.py",
             "test_runner_strict_codegen.py",
+            "test_runner_strict_production.py",
             "test_runner_api_only_protocol.py",
             "test_starter_init.py",
             "test_starter_apply.py",
@@ -382,6 +384,9 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
+
 
 
 

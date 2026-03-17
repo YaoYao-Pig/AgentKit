@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import socket
@@ -31,6 +32,17 @@ def _is_endpoint_reachable(endpoint: str, timeout_sec: int) -> bool:
         return False
 
 
+def _is_local_hostname(host: str) -> bool:
+    value = host.strip().lower().rstrip(".")
+    if value in {"localhost", "0.0.0.0", "::1"}:
+        return True
+    try:
+        ip = ipaddress.ip_address(value)
+        return ip.is_loopback or ip.is_unspecified
+    except ValueError:
+        return value.endswith(".local")
+
+
 def enforce_strict_codegen(config: FullConfig, spec: TaskRunSpec) -> None:
     runtime = config.runtime
     if not runtime.strict_codegen_mode:
@@ -54,6 +66,10 @@ def enforce_strict_codegen(config: FullConfig, spec: TaskRunSpec) -> None:
     endpoint = str((llm_skill.static_params or {}).get("endpoint") or "").strip()
     if not endpoint:
         raise ValueError("strict_codegen_mode requires llm_codegen.static_params.endpoint")
+
+    parsed = urlparse(endpoint)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError(f"strict_codegen_mode invalid llm endpoint: '{endpoint}'")
 
     key_env_name = runtime.llm_api_key_env.strip() or "AGENTKIT_LLM_API_KEY"
     api_key = os.getenv(key_env_name, "").strip()
@@ -84,11 +100,20 @@ def enforce_strict_codegen(config: FullConfig, spec: TaskRunSpec) -> None:
                 "strict_industrial_mode requires non-empty policy_rules.require_api_patch_for_paths"
             )
 
+    if runtime.strict_production_mode:
+        if not runtime.strict_industrial_mode:
+            raise ValueError("strict_production_mode requires strict_industrial_mode=true")
+        if _is_local_hostname(parsed.hostname):
+            raise ValueError(
+                "strict_production_mode forbids local codegen endpoints (localhost/loopback/0.0.0.0/.local)"
+            )
+
     logger.info(
-        "strict_codegen_mode checks passed action=%s endpoint=%s key_env=%s healthcheck=%s strict_industrial=%s",
+        "strict_codegen_mode checks passed action=%s endpoint=%s key_env=%s healthcheck=%s strict_industrial=%s strict_production=%s",
         chosen_action,
         endpoint,
         key_env_name,
         runtime.llm_healthcheck_required,
         runtime.strict_industrial_mode,
+        runtime.strict_production_mode,
     )

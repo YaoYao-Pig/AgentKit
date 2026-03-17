@@ -538,3 +538,24 @@ require_api_patch_for_paths:
 > ```
 >
 > 这样首次 `agentkit-run` 会自动完成 `git init` + baseline commit，避免因未初始化仓库而被 strict 工业模式阻断。
+
+> 如果你要求“代码内容必须由 API 侧 Agent 生成（而不是本地 stub）”，再开启：
+>
+> ```yaml
+> strict_production_mode: true
+> ```
+>
+> 该模式会：
+> - 禁止 local endpoint（localhost / 127.x / 0.0.0.0 / .local）
+> - 强制 API 响应携带 `provenance`：
+>
+> ```json
+> {
+>   "provenance": {
+>     "provider": "...",
+>     "model": "...",
+>     "response_id": "...",
+>     "generated_by": "api_remote_agent"
+>   }
+> }
+> ```

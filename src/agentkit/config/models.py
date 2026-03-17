@@ -55,6 +55,7 @@ class RuntimeConfig:
     strict_codegen_mode: bool = False
     strict_industrial_mode: bool = False
     strict_industrial_auto_init_git: bool = False
+    strict_production_mode: bool = False
     llm_healthcheck_required: bool = False
     llm_endpoint_timeout_sec: int = 3
     llm_api_key_env: str = "AGENTKIT_LLM_API_KEY"
