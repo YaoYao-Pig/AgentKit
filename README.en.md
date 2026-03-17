@@ -175,7 +175,7 @@ After each run:
 
 These artifacts form your execution audit chain.
 
-## Common anti-patterns
+## Debug log triage (for adjacent-agent troubleshooting)\n\nDefault log file: `.agentkit/logs/agentkit-serve.log`\n\nRecommended startup for debugging:\n\n```bash\nagentkit-serve --workspace . --log-level DEBUG\n```\n\nPrioritize these log lines:\n- `[request_id] POST /v1/tasks/run`: request reached the service\n- `unauthorized`: token/header mismatch\n- `strict_codegen_mode` errors: hard gate blocked execution\n- `llm_http request/response`: confirms remote writer API was actually called\n- `strict codegen patches applied`: confirms patch ledger-backed write was applied\n\nIf verify fails, inspect:\n- `.agentkit/patches/<task_id>.json` (API patch evidence)\n- `.agentkit/runs/<task_id>.json` (execution summary)\n- git changes under `src/` or `tests/` that are not present in patch ledger\n\n## Common anti-patterns
 
 - Skipping run/verify and relying only on chat discipline
 - Committing plaintext tokens into repo
@@ -259,6 +259,7 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
 
 
 

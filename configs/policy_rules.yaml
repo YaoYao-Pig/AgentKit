@@ -3,3 +3,7 @@ blocked_action_types:
 review_action_types:
   - external_write
   - repo_push
+forbid_manual_business_edits: false
+require_api_patch_for_paths:
+  - src/
+  - tests/

@@ -31,6 +31,8 @@ class SkillsIndexConfig:
 class PolicyRulesConfig:
     blocked_action_types: list[str] = field(default_factory=list)
     review_action_types: list[str] = field(default_factory=list)
+    forbid_manual_business_edits: bool = False
+    require_api_patch_for_paths: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -63,6 +65,7 @@ class FullConfig:
     policy_rules: PolicyRulesConfig
     module_rules: ModuleRulesConfig
     runtime: RuntimeConfig
+
 
 
 

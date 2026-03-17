@@ -329,6 +329,7 @@ def initialize_starter_project(
             "test_runtime_codegen_flow.py",
             "test_runner_env_check.py",
             "test_runner_strict_codegen.py",
+            "test_runner_api_only_protocol.py",
             "test_starter_init.py",
             "test_starter_apply.py",
             "test_starter_migrate.py",
@@ -368,6 +369,7 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
 
 
 

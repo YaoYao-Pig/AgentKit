@@ -31,6 +31,8 @@ def test_config_schema_loading() -> None:
     assert "llm_codegen" in config.skills_index.skills
     assert config.skills_index.skills["llm_codegen"].adapter == "llm_http"
     assert "apply_generated_patch" in config.skills_index.skills
+    assert isinstance(config.policy_rules.forbid_manual_business_edits, bool)
+    assert isinstance(config.policy_rules.require_api_patch_for_paths, list)
 
 
 def test_template_metadata_schema_requires_title(tmp_path: Path) -> None:
@@ -58,6 +60,7 @@ Body
         assert False, "expected metadata validation error"
     except KeyError:
         assert True
+
 
 
 

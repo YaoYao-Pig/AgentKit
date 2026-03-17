@@ -353,7 +353,7 @@ skills:
 
 这些产物一起构成“任务审计链”。
 
-## 常见误区
+## 调试日志定位（隔壁 Agent 常用）\n\n日志文件默认在：` .agentkit/logs/agentkit-serve.log `\n\n建议在排障时固定这样启动：\n\n```bash\nagentkit-serve --workspace . --log-level DEBUG\n```\n\n优先看这几类日志：\n- `[request_id] POST /v1/tasks/run`：确认请求是否进入服务\n- `unauthorized`：鉴权失败（token/header不一致）\n- `strict_codegen_mode` 相关报错：说明被硬门禁拦截\n- `llm_http request/response`：确认是否真的调用了写码 API\n- `strict codegen patches applied`：确认 patch 已落盘\n\n如果 `verify` 失败，去看：\n- `.agentkit/patches/<task_id>.json`（API patch 证据）\n- `.agentkit/runs/<task_id>.json`（执行摘要）\n- git 变更里是否有不在 patch ledger 的 `src/` 或 `tests/` 文件\n\n## 常见误区
 
 - 误区 1：只让 Agent 对话，不要求 run/verify。
   - 结果：流程不可追踪，约束难落地。
@@ -441,6 +441,7 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
 
 
