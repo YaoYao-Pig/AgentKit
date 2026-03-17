@@ -265,3 +265,25 @@ Baseline includes schema, document rendering, registry loading, runtime happy/re
 
 
 
+
+## Post-Run Error Replay and Persisted Avoidance Rules (New)
+
+When a `run` fails, AgentKit now auto-writes an error report:
+- `.agentkit/errors/<task_id>--<report_id>.json`
+- `.agentkit/errors/<task_id>.latest.json`
+
+List recorded errors:
+
+```bash
+agentkit-errors --workspace . --task-id <task_id>
+```
+
+Persist selected items as avoidance rules (pre-run warning, or hard block with `block` mode):
+
+```bash
+agentkit-errors --workspace . --task-id <task_id> --save 1,2 --mode warn
+agentkit-errors --workspace . --task-id <task_id> --save 1 --mode block --note "must fix env first"
+```
+
+Rules are stored at:
+- `.agentkit/feedback/avoidance_rules.json`

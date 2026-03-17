@@ -25,6 +25,7 @@ from agentkit.runtime.layers.state import AutoApproveReviewHook, InMemoryStateSt
 from agentkit.runtime.layers.validation import SimpleValidator
 from agentkit.runtime.models import Action, RuntimeOutcome, Task
 
+from .error_feedback import build_report, evaluate_avoidance_rules, make_event, write_error_report
 from .guards import enforce_strict_codegen
 from .task_spec import TaskRunSpec, load_task_run_spec
 
@@ -40,6 +41,7 @@ class TaskRunResult:
     run_report_path: str
     context_report_path: str
     generated_docs: list[str]
+    error_report_path: str = ""
 
 
 def _json_default(obj: object) -> object:
@@ -261,7 +263,29 @@ def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome
     return {"ledger_path": str(out_path), "request_id": request_id, "touched_files": ledger["touched_files"]}
 
 
-def _write_run_report(workspace: Path, spec: TaskRunSpec, outcome: RuntimeOutcome, docs: list[str], context_path: str) -> str:
+def _collect_outcome_error_events(outcome: RuntimeOutcome) -> list:
+    events = []
+    for record in outcome.state.records:
+        if record.result.status == "failed":
+            message = str(record.result.output.get("message") or record.result.summary.content or "action failed")
+            events.append(make_event(message, stage="execution", action_type=record.action.action_type))
+    return events
+
+
+def _persist_exception_report(workspace: Path, task_id: str, exc: Exception, action_type: str) -> str:
+    event = make_event(str(exc), stage="run_task", action_type=action_type)
+    report = build_report(task_id=task_id, events=[event])
+    return str(write_error_report(workspace, report))
+
+
+def _write_run_report(
+    workspace: Path,
+    spec: TaskRunSpec,
+    outcome: RuntimeOutcome,
+    docs: list[str],
+    context_path: str,
+    error_report_path: str,
+) -> str:
     out_dir = workspace / ".agentkit" / "runs"
     _ensure_dir(out_dir)
     out_path = out_dir / f"{spec.id}.json"
@@ -281,6 +305,7 @@ def _write_run_report(workspace: Path, spec: TaskRunSpec, outcome: RuntimeOutcom
         "strict_codegen_mode": bool(outcome.state.metadata.get("strict_codegen_mode", False)),
         "patch_ledger": outcome.state.metadata.get("patch_ledger"),
         "patch_request_id": outcome.state.metadata.get("patch_request_id"),
+        "error_report": error_report_path,
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(out_path)
@@ -316,55 +341,85 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
     spec_path = Path(task_file)
     if not spec_path.is_absolute():
         spec_path = workspace_path / spec_path
-    spec = load_task_run_spec(str(spec_path))
 
-    config = load_full_config(str(workspace_path / "configs"))
-    enforce_strict_codegen(config, spec)
+    spec: TaskRunSpec | None = None
+    action_type_hint = ""
 
-    logger.info(
-        "task run started task_id=%s action_type=%s strict_codegen=%s workspace=%s",
-        spec.id,
-        spec.action_type or config.runtime.default_action_type,
-        config.runtime.strict_codegen_mode,
-        workspace_path,
-    )
+    try:
+        spec = load_task_run_spec(str(spec_path))
+        action_type_hint = spec.action_type or ""
 
-    context_report = _write_context_report(workspace_path, spec)
-    engine = _build_engine(workspace_path, spec, config)
-    task = _to_task(spec)
-    outcome = engine.run(task)
+        config = load_full_config(str(workspace_path / "configs"))
+        action_type = spec.action_type or config.runtime.default_action_type
+        warnings, blockers = evaluate_avoidance_rules(
+            workspace_path,
+            action_type=action_type,
+            llm_api_key_env=config.runtime.llm_api_key_env,
+        )
+        for item in warnings:
+            logger.warning("known issue warning task_id=%s: %s", spec.id, item)
+        if blockers:
+            raise ValueError("blocked by persisted avoidance rules:\n" + "\n".join(f"- {x}" for x in blockers))
 
-    outcome.state.metadata["workspace_root"] = str(workspace_path)
-    outcome.state.metadata["module_rules"] = asdict(config.module_rules)
-    outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
-    outcome.state.metadata["strict_codegen_mode"] = config.runtime.strict_codegen_mode
+        enforce_strict_codegen(config, spec)
 
-    if config.runtime.strict_codegen_mode and outcome.status.value == "COMPLETED":
-        protocol = _apply_generated_patches(workspace_path, config, spec, outcome)
-        outcome.state.metadata["patch_ledger"] = protocol["ledger_path"]
-        outcome.state.metadata["patch_request_id"] = protocol["request_id"]
-        outcome.state.metadata["patch_touched_files"] = protocol["touched_files"]
+        logger.info(
+            "task run started task_id=%s action_type=%s strict_codegen=%s workspace=%s",
+            spec.id,
+            action_type,
+            config.runtime.strict_codegen_mode,
+            workspace_path,
+        )
 
-    state_path = _write_state(workspace_path, outcome)
-    docs = _update_docs(workspace_path, task, outcome)
-    run_report = _write_run_report(workspace_path, spec, outcome, docs, context_report)
+        context_report = _write_context_report(workspace_path, spec)
+        engine = _build_engine(workspace_path, spec, config)
+        task = _to_task(spec)
+        outcome = engine.run(task)
 
-    logger.info(
-        "task run completed task_id=%s status=%s records=%d retries=%d",
-        spec.id,
-        outcome.status.value,
-        len(outcome.state.records),
-        outcome.state.retries,
-    )
+        outcome.state.metadata["workspace_root"] = str(workspace_path)
+        outcome.state.metadata["module_rules"] = asdict(config.module_rules)
+        outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
+        outcome.state.metadata["strict_codegen_mode"] = config.runtime.strict_codegen_mode
 
-    return TaskRunResult(
-        task_id=spec.id,
-        status=outcome.status.value,
-        state_path=state_path,
-        run_report_path=run_report,
-        context_report_path=context_report,
-        generated_docs=docs,
-    )
+        if config.runtime.strict_codegen_mode and outcome.status.value == "COMPLETED":
+            protocol = _apply_generated_patches(workspace_path, config, spec, outcome)
+            outcome.state.metadata["patch_ledger"] = protocol["ledger_path"]
+            outcome.state.metadata["patch_request_id"] = protocol["request_id"]
+            outcome.state.metadata["patch_touched_files"] = protocol["touched_files"]
+
+        error_events = _collect_outcome_error_events(outcome)
+        error_report_path = ""
+        if error_events:
+            error_report = build_report(task_id=spec.id, events=error_events)
+            error_report_path = str(write_error_report(workspace_path, error_report))
+            logger.warning("task run captured %d error event(s), report=%s", len(error_events), error_report_path)
+
+        state_path = _write_state(workspace_path, outcome)
+        docs = _update_docs(workspace_path, task, outcome)
+        run_report = _write_run_report(workspace_path, spec, outcome, docs, context_report, error_report_path)
+
+        logger.info(
+            "task run completed task_id=%s status=%s records=%d retries=%d",
+            spec.id,
+            outcome.status.value,
+            len(outcome.state.records),
+            outcome.state.retries,
+        )
+
+        return TaskRunResult(
+            task_id=spec.id,
+            status=outcome.status.value,
+            state_path=state_path,
+            run_report_path=run_report,
+            context_report_path=context_report,
+            generated_docs=docs,
+            error_report_path=error_report_path,
+        )
+    except Exception as exc:
+        fallback_task_id = spec.id if spec is not None else spec_path.stem or "unknown-task"
+        report_path = _persist_exception_report(workspace_path, fallback_task_id, exc, action_type_hint)
+        logger.exception("task run failed task_id=%s error_report=%s", fallback_task_id, report_path)
+        raise ValueError(f"{exc}\nerror report: {report_path}") from exc
 
 
 def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:

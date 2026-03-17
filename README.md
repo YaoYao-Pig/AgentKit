@@ -483,3 +483,25 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_api_only_flow.ps1
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_api_only_flow.ps1 -KeepAlive
 ```
+
+## 执行后错误回放与规则落盘（新）
+
+当一次 `run` 失败时，AgentKit 会自动落盘错误报告：
+- `.agentkit/errors/<task_id>--<report_id>.json`
+- `.agentkit/errors/<task_id>.latest.json`
+
+查看错误清单：
+
+```bash
+agentkit-errors --workspace . --task-id <task_id>
+```
+
+按编号选择并落盘为“避免规则”（后续运行前会预警，`block` 模式会直接阻断）：
+
+```bash
+agentkit-errors --workspace . --task-id <task_id> --save 1,2 --mode warn
+agentkit-errors --workspace . --task-id <task_id> --save 1 --mode block --note "must fix env first"
+```
+
+规则文件路径：
+- `.agentkit/feedback/avoidance_rules.json`

@@ -35,6 +35,7 @@ python -m pytest
 agentkit-doctor --workspace . --strict
 agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
+agentkit-errors --workspace . --task-id sample-task-001
 
 # optional: API-enforced mode
 agentkit-serve --workspace . --require-token --token dev-agentkit-token
@@ -343,6 +344,7 @@ def initialize_starter_project(
             "test_starter_apply.py",
             "test_starter_migrate.py",
             "test_starter_clean.py",
+            "test_error_feedback.py",
         ]:
             if _copy_file(root / "tests" / file_name, target_dir / "tests" / file_name, force):
                 generated.append(target_dir / "tests" / file_name)
@@ -378,6 +380,8 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
 
 
 
