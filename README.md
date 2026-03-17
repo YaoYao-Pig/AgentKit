@@ -124,6 +124,119 @@ curl -X POST "http://127.0.0.1:8787/v1/tasks/verify" \
 不要绕过 AgentKit 直接裸改代码。
 ```
 
+## 新手完整实战：先管文档，再调用 API 改代码
+
+下面给你一个可以直接照着走的真实场景。
+
+场景：你有一个前端项目，想把首页按钮文案从“立即开始”改成“开始体验”，并要求全流程留痕。
+
+### Step 0：准备（终端）
+
+在项目根目录执行：
+
+```bash
+pip install -e .
+agentkit-serve --workspace . --require-token --token dev-agentkit-token
+```
+
+说明：
+- 这一步会启动 AgentKit API 服务。
+- 后续 Agent 不应绕过这个服务直接改代码。
+
+### Step 1：你在终端里对 Agent 下达任务（对话）
+
+你可以直接复制下面这段：
+
+```text
+需求：把首页主按钮文案从“立即开始”改为“开始体验”。
+约束：只允许修改 src/web/ 下文件；不允许改后端。
+验收：
+1) 页面按钮文案更新
+2) 单元测试通过
+3) docs/generated 至少更新 task_model、decision_log、handoff_note
+
+请按 AgentKit 协议执行：
+- 先创建或更新 task spec 与文档上下文
+- 然后通过 agentkit-serve 调 /v1/tasks/run 执行
+- 完成后调 /v1/tasks/verify
+- 返回改动文件、验证结果、风险和回滚点
+```
+
+### Step 2：Agent 应该先做什么（你要观察这几点）
+
+你不需要懂代码，只要检查 Agent 有没有先做这些：
+
+1. 先更新任务建模信息（task spec）。
+2. 明确 `affected_files`、`validation_checklist`、`rollback_plan`、`risk_points`。
+3. 先更新文档上下文，而不是直接动业务代码。
+
+如果 Agent 一上来就说“我先改文件”，你应立即打断并要求它先走 AgentKit 协议。
+
+### Step 3：Agent 通过 API 执行（而不是裸改）
+
+标准动作应类似：
+
+- 调用 `POST /v1/tasks/run`
+- Header 带 `Authorization: Bearer dev-agentkit-token`
+- 请求体带 task 文件路径
+
+你可以让 Agent 显示关键返回字段：
+- `task_id`
+- `status`
+- `state_path`
+- `run_report_path`
+- `generated_docs`
+
+### Step 4：Agent 必须做验证
+
+标准动作：调用 `POST /v1/tasks/verify`。
+
+你要看到：
+- `ok: true`
+- `missing: []`
+
+如果 `ok=false`，说明流程不完整，不能算完成。
+
+### Step 5：你如何验收（不需要高代码能力）
+
+你只检查四类结果：
+
+1. 代码结果：按钮文案是否变更。
+2. 质量结果：测试是否通过（至少 Agent 给出测试证据）。
+3. 过程结果：`.agentkit/state`、`.agentkit/runs` 是否有该任务文件。
+4. 文档结果：`docs/generated/task_model.md`、`decision_log.md`、`handoff_note.md` 是否更新。
+
+### Step 6：失败时怎么处理
+
+常见失败与处理：
+
+- 失败 A：`Connection refused`
+  - 原因：`agentkit-serve` 没启动。
+  - 处理：先启动服务，再让 Agent 重试。
+
+- 失败 B：`401 unauthorized`
+  - 原因：token 不一致或没带。
+  - 处理：确认 `runtime.yaml` 和请求 Header 使用同一个 token。
+
+- 失败 C：`path is outside allowed_paths`
+  - 原因：Agent 想改白名单外路径。
+  - 处理：
+    1) 若确实不该改，保持拒绝；
+    2) 若业务需要，先人工更新 `configs/module_rules.yaml` 再重试。
+
+### Step 7：一条“给 Agent 的纠偏话术”
+
+当 Agent 试图绕过流程时，你可以直接说：
+
+```text
+停止直接改代码。先按 AgentKit 执行：
+1) 更新任务模型与文档上下文
+2) 调 /v1/tasks/run
+3) 调 /v1/tasks/verify
+4) 再汇总变更与风险
+```
+
+这个话术对新手非常有效，因为它把“你该怎么盯流程”变成了可执行清单。
 ## 代码生成闭环（LLM -> Patch -> 受控写入）
 
 你现在可以走这条链路：
@@ -240,4 +353,5 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
