@@ -54,6 +54,7 @@ def main() -> None:
     p_serve.add_argument("--port", type=int)
     p_serve.add_argument("--token")
     p_serve.add_argument("--require-token", action="store_true")
+    p_serve.add_argument("--log-level")
     p_serve.add_argument("--no-config", action="store_true")
 
     args = parser.parse_args()
@@ -100,11 +101,13 @@ def main() -> None:
             port=args.port,
             token=args.token,
             require_token=args.require_token,
+            log_level=args.log_level,
             no_config=args.no_config,
         )
 
 
 if __name__ == "__main__":
     main()
+
 
 

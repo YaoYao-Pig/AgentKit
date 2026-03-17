@@ -20,6 +20,7 @@ def test_config_schema_loading() -> None:
     assert config.runtime.max_steps > 0
     assert config.runtime.api_port > 0
     assert config.runtime.api_host
+    assert config.runtime.api_log_level
     assert "mock_action" in config.skills_index.skills
     assert config.skills_index.skills["mock_action"].adapter == "mock"
     assert "run_tests" in config.skills_index.skills
@@ -54,5 +55,6 @@ Body
         assert False, "expected metadata validation error"
     except KeyError:
         assert True
+
 
 

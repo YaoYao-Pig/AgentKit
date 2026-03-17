@@ -47,6 +47,7 @@ class RuntimeConfig:
     api_port: int = 8787
     require_api_token: bool = False
     api_token: str = ""
+    api_log_level: str = "INFO"
 
 
 @dataclass(slots=True)
@@ -56,4 +57,5 @@ class FullConfig:
     policy_rules: PolicyRulesConfig
     module_rules: ModuleRulesConfig
     runtime: RuntimeConfig
+
 

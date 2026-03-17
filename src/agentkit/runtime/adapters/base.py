@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import os
 import subprocess
 from abc import ABC, abstractmethod
@@ -13,6 +14,9 @@ from urllib import request
 from agentkit.config.models import SkillConfig
 
 from ..models import Action, ActionResult, EvidenceRef, PipelineState, Summary
+
+
+logger = logging.getLogger("agentkit.adapter")
 
 
 class ToolAdapter(ABC):
@@ -145,7 +149,17 @@ class LlmHttpAdapter(ToolAdapter):
         if api_key:
             req.add_header("Authorization", f"Bearer {api_key}")
 
+        logger.info(
+            "llm_http request action_id=%s task_id=%s endpoint=%s model=%s prompt_chars=%d",
+            action.id,
+            state.task_id,
+            endpoint,
+            model,
+            len(prompt),
+        )
+
         with request.urlopen(req, timeout=60) as resp:
+            status_code = resp.getcode()
             body = resp.read().decode("utf-8")
             parsed = json.loads(body) if body else {}
 
@@ -154,6 +168,14 @@ class LlmHttpAdapter(ToolAdapter):
 
         status = str(parsed.get("status", "success"))
         summary_text = str(parsed.get("summary") or f"LLM endpoint returned status '{status}'.")
+
+        logger.info(
+            "llm_http response action_id=%s task_id=%s http_status=%s llm_status=%s",
+            action.id,
+            state.task_id,
+            status_code,
+            status,
+        )
 
         return ActionResult(
             action_id=action.id,
@@ -255,3 +277,5 @@ def default_adapter_registry(
         "llm_http": LlmHttpAdapter(),
         "file_patch": FilePatchAdapter(workspace_root=workspace_root, allowed_paths=allowed_paths),
     }
+
+

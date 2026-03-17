@@ -64,7 +64,7 @@ Field meanings:
 - `require_api_token`: enforce authenticated API calls
 - `api_token`: server-side token for request authorization (use env-injection in production)
 
-## 2) Start the service
+\nFor more detailed logs (auth failures, run/verify route handling, LLM forwarding summaries), use:\n\n```bash\nagentkit-serve --workspace . --log-level DEBUG\n```\n## 2) Start the service
 
 ```bash
 agentkit-serve --workspace .
@@ -257,5 +257,6 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
 
 
