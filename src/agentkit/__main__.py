@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from agentkit.runner.api import run_task, verify_task_run
+from agentkit.runner.env_check import ensure_workspace_environment, inspect_environment
 from agentkit.runner.serve_cli import run_server
 from agentkit.starter.apply import apply_starter_project
 from agentkit.starter.clean import clean_project
@@ -39,6 +41,11 @@ def main() -> None:
     p_clean.add_argument("--target", default=".")
     p_clean.add_argument("--scope", choices=["runtime", "docs", "migration", "all"], default="runtime")
     p_clean.add_argument("--dry-run", action="store_true")
+
+    p_doctor = sub.add_parser("doctor", help="Diagnose AgentKit environment binding")
+    p_doctor.add_argument("--workspace", default=".")
+    p_doctor.add_argument("--json", action="store_true")
+    p_doctor.add_argument("--strict", action="store_true")
 
     p_run = sub.add_parser("run", help="Run a task through AgentKit pipeline")
     p_run.add_argument("--task", required=True)
@@ -84,10 +91,20 @@ def main() -> None:
     elif args.command == "clean":
         result = clean_project(target_dir=Path(args.target), scope=args.scope, dry_run=args.dry_run)
         print(result)
+    elif args.command == "doctor":
+        report = inspect_environment(args.workspace)
+        if args.json:
+            print(json.dumps(report.__dict__, ensure_ascii=False, indent=2))
+        else:
+            print(report)
+        if args.strict and not report.is_valid:
+            raise SystemExit(1)
     elif args.command == "run":
+        ensure_workspace_environment(args.workspace)
         result = run_task(workspace=args.workspace, task_file=args.task)
         print(result)
     elif args.command == "verify":
+        ensure_workspace_environment(args.workspace)
         ok, missing = verify_task_run(workspace=args.workspace, task_id=args.task_id)
         if not ok:
             for item in missing:
@@ -108,6 +125,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-

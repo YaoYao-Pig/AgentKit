@@ -6,6 +6,7 @@ from pathlib import Path
 
 from agentkit.config.loader import load_full_config
 
+from .env_check import ensure_workspace_environment
 from .server import ApiServerSettings, serve
 
 
@@ -76,6 +77,8 @@ def run_server(
         no_config=no_config,
     )
 
+    ensure_workspace_environment(settings.workspace)
+
     effective_level = (log_level or settings.log_level or "INFO").upper()
     logging.basicConfig(
         level=getattr(logging, effective_level, logging.INFO),
@@ -101,3 +104,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

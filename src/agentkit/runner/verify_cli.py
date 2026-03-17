@@ -3,6 +3,7 @@ from __future__ import annotations
 from argparse import ArgumentParser
 
 from .api import verify_task_run
+from .env_check import ensure_workspace_environment
 
 
 def build_parser() -> ArgumentParser:
@@ -16,6 +17,7 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    ensure_workspace_environment(args.workspace)
     ok, missing = verify_task_run(workspace=args.workspace, task_id=args.task_id)
     if ok:
         print("Verification passed")

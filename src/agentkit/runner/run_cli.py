@@ -3,6 +3,7 @@ from __future__ import annotations
 from argparse import ArgumentParser
 
 from .api import run_task
+from .env_check import ensure_workspace_environment
 
 
 def build_parser() -> ArgumentParser:
@@ -16,6 +17,7 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    ensure_workspace_environment(args.workspace)
     result = run_task(workspace=args.workspace, task_file=args.task)
     print(f"Task: {result.task_id}")
     print(f"Status: {result.status}")

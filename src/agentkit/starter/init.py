@@ -32,6 +32,7 @@ This project was bootstrapped from AgentKit starter.
 ```bash
 pip install -e .
 python -m pytest
+agentkit-doctor --workspace . --strict
 agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 
@@ -71,19 +72,20 @@ This repository is a reusable agent pipeline project scaffold.
    - configs/policy_rules.yaml
    - configs/module_rules.yaml
    - configs/skills_index.yaml
-2. Before edits, provide:
+2. Run `agentkit-doctor --workspace . --strict` before run/verify/serve.
+3. Before edits, provide:
    - task model
    - impacted scope
    - risk points
-3. Run validation pre-check and post-check for each action.
-4. Update docs/generated at least:
+4. Run validation pre-check and post-check for each action.
+5. Update docs/generated at least:
    - task_model
    - decision_log
    - handoff_note
-5. For destructive/high-risk actions, request human approval first.
-6. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
-7. If API mode is enabled, tasks must be triggered through `agentkit-serve` endpoints with valid token.
-8. Final output must include:
+6. For destructive/high-risk actions, request human approval first.
+7. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
+8. If API mode is enabled, tasks must be triggered through `agentkit-serve` endpoints with valid token.
+9. Final output must include:
    - changed files
    - evidence references
    - remaining risks/todos
@@ -322,6 +324,7 @@ def initialize_starter_project(
             "test_runner_pipeline.py",
             "test_runner_api_server.py",
             "test_runtime_codegen_flow.py",
+            "test_runner_env_check.py",
             "test_starter_init.py",
             "test_starter_apply.py",
             "test_starter_migrate.py",
@@ -361,6 +364,9 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
+
 
 
 

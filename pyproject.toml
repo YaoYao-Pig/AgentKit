@@ -20,6 +20,7 @@ agentkit-clean = "agentkit.starter.clean_cli:main"
 agentkit-run = "agentkit.runner.run_cli:main"
 agentkit-verify = "agentkit.runner.verify_cli:main"
 agentkit-serve = "agentkit.runner.serve_cli:main"
+agentkit-doctor = "agentkit.runner.doctor_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

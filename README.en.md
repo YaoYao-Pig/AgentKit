@@ -32,6 +32,7 @@ In short: this is an agent governance layer, not a one-off prompt trick.
 
 ```bash
 pip install -e .
+agentkit-doctor --workspace . --strict
 ```
 
 ### Minimal CLI flow
@@ -257,6 +258,7 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
 
 
 

@@ -32,6 +32,7 @@ AgentKit 解决的是这三件事：
 
 ```bash
 pip install -e .
+agentkit-doctor --workspace . --strict
 ```
 
 ### CLI 最小链路
@@ -439,6 +440,7 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
 
 
