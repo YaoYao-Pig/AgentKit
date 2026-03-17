@@ -136,6 +136,7 @@ Edit `configs/runtime.yaml`:
 - `api_host` / `api_port`: bind address
 - `strict_codegen_mode`: require llm codegen path for code-writing tasks
 - `strict_industrial_mode`: block run/verify if protected code paths contain edits not backed by API patch ledger
+- `strict_industrial_auto_init_git`: auto `git init` + baseline commit when strict industrial mode is enabled
 - `llm_api_key_env`: required API key env var name
 - `api_log_to_file` / `api_log_file`: persist serve logs for debugging
 """
@@ -381,6 +382,8 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
 
 
 

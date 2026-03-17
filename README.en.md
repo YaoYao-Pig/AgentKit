@@ -310,3 +310,13 @@ Behavior:
 - First generation and every follow-up fix must come from `llm_codegen -> apply_generated_patch`.
 - If `src/`/`tests/` contain edits not backed by patch ledger, `run` is blocked before execution and `verify` fails.
 - Multi-round runs for the same task accumulate under ledger `rounds` for TE-loop traceability.
+
+> Optional auto Git baseline in strict mode:
+>
+> Add in `configs/runtime.yaml`:
+>
+> ```yaml
+> strict_industrial_auto_init_git: true
+> ```
+>
+> Then the first `agentkit-run` will automatically perform `git init` + a baseline commit, so strict industrial mode is not blocked by an uninitialized repository.

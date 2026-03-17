@@ -528,3 +528,13 @@ require_api_patch_for_paths:
 - 首次生成和后续每一轮修复都必须来自 `llm_codegen -> apply_generated_patch`。
 - 若 `src/` / `tests/` 有不在 patch ledger 的手工改动，`run` 会在执行前直接阻断，`verify` 也会失败。
 - 同一 task 多轮执行会累计到同一个 ledger 的 `rounds` 字段，便于追踪 TE 循环。
+
+> strict 模式下可选自动 Git 基线：
+>
+> 在 `configs/runtime.yaml` 里加：
+>
+> ```yaml
+> strict_industrial_auto_init_git: true
+> ```
+>
+> 这样首次 `agentkit-run` 会自动完成 `git init` + baseline commit，避免因未初始化仓库而被 strict 工业模式阻断。

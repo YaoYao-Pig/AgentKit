@@ -363,6 +363,48 @@ def _is_git_repo(workspace: Path) -> bool:
     return completed.returncode == 0 and completed.stdout.strip().lower() == "true"
 
 
+def _has_git_head(workspace: Path) -> bool:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(workspace), "rev-parse", "--verify", "HEAD"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0
+
+
+def _init_git_baseline(workspace: Path) -> None:
+    commands = [
+        ["git", "-C", str(workspace), "init"],
+        ["git", "-C", str(workspace), "config", "user.name", "AgentKit"],
+        ["git", "-C", str(workspace), "config", "user.email", "agentkit@local"],
+        ["git", "-C", str(workspace), "add", "."],
+        ["git", "-C", str(workspace), "commit", "-m", "agentkit: initialize strict industrial baseline"],
+    ]
+    for cmd in commands:
+        completed = subprocess.run(cmd, text=True, capture_output=True, check=False)
+        if completed.returncode != 0:
+            stderr = (completed.stderr or "").strip()
+            stdout = (completed.stdout or "").strip()
+            detail = stderr or stdout or "unknown git error"
+            raise ValueError(f"strict_industrial_auto_init_git failed: {' '.join(cmd)} -> {detail}")
+
+
+def _ensure_git_baseline_for_strict_mode(workspace: Path, *, auto_init: bool) -> None:
+    if _is_git_repo(workspace) and _has_git_head(workspace):
+        return
+    if not auto_init:
+        raise ValueError(
+            "strict_industrial_mode requires workspace to be a git repository with at least one commit; "
+            "set runtime.strict_industrial_auto_init_git=true to bootstrap automatically"
+        )
+    _init_git_baseline(workspace)
+    logger.info("strict industrial mode initialized git baseline workspace=%s", workspace)
+
+
 def _git_changed_files(workspace: Path) -> list[str]:
     try:
         completed = subprocess.run(
@@ -431,8 +473,10 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
         enforce_strict_codegen(config, spec)
 
         if config.runtime.strict_industrial_mode:
-            if not _is_git_repo(workspace_path):
-                raise ValueError("strict_industrial_mode requires workspace to be a git repository")
+            _ensure_git_baseline_for_strict_mode(
+                workspace_path,
+                auto_init=bool(config.runtime.strict_industrial_auto_init_git),
+            )
             protected_prefixes = [str(x).replace("\\", "/") for x in config.policy_rules.require_api_patch_for_paths]
             if config.policy_rules.forbid_manual_business_edits and protected_prefixes:
                 known_api_touched = _collect_all_touched_files(workspace_path)
@@ -525,7 +569,10 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
         protected_prefixes = [str(x).replace("\\", "/") for x in config.policy_rules.require_api_patch_for_paths]
         if config.policy_rules.forbid_manual_business_edits and protected_prefixes:
             if config.runtime.strict_industrial_mode and not _is_git_repo(base):
-                missing.append("strict_industrial_mode requires workspace to be a git repository")
+                if config.runtime.strict_industrial_auto_init_git:
+                    missing.append("strict_industrial_mode auto-init is enabled: run task once to bootstrap git baseline")
+                else:
+                    missing.append("strict_industrial_mode requires workspace to be a git repository")
             else:
                 if config.runtime.strict_industrial_mode:
                     allowed_touched = _collect_all_touched_files(base)
@@ -537,4 +584,8 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
                     missing.append(f"manual edit detected outside API patch ledger: {changed_file}")
 
     return (len(missing) == 0, missing)
+
+
+
+
 
