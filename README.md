@@ -449,3 +449,15 @@ python -m pytest
 
 
 
+
+## Windows 1326 故障处置规范
+
+当出现 `CreateProcessWithLogonW failed: 1326` 时，按下面流程执行：
+
+1. 不要盲目重试同一命令。
+2. 先运行 `agentkit-doctor --workspace . --strict`。
+3. 切换到已批准的提权命令路径再重试。
+4. 不要仅按 PID 直接杀进程，先确认进程归属与端口。
+5. 把失败上下文记录到 `.agentkit/logs/agentkit-serve.log` 并附带 request_id。
+
+这条规范的目标是避免 Agent 在权限异常时进入“反复试错但结果不可控”的状态。

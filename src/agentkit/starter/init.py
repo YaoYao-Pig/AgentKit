@@ -73,19 +73,23 @@ This repository is a reusable agent pipeline project scaffold.
    - configs/module_rules.yaml
    - configs/skills_index.yaml
 2. Run `agentkit-doctor --workspace . --strict` before run/verify/serve.
-3. Before edits, provide:
+3. If tooling fails with `CreateProcessWithLogonW failed: 1326`, do not retry blindly:
+   - switch to an approved escalated command path
+   - avoid PID-only kill commands without process ownership verification
+   - record failure context in `.agentkit/logs/agentkit-serve.log`
+4. Before edits, provide:
    - task model
    - impacted scope
    - risk points
-4. Run validation pre-check and post-check for each action.
-5. Update docs/generated at least:
+5. Run validation pre-check and post-check for each action.
+6. Update docs/generated at least:
    - task_model
    - decision_log
    - handoff_note
-6. For destructive/high-risk actions, request human approval first.
-7. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
-8. If API mode is enabled, tasks must be triggered through `agentkit-serve` endpoints with valid token.
-9. Final output must include:
+7. For destructive/high-risk actions, request human approval first.
+8. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
+9. If API mode is enabled, tasks must be triggered through `agentkit-serve` endpoints with valid token.
+10. Final output must include:
    - changed files
    - evidence references
    - remaining risks/todos
@@ -369,6 +373,7 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
 
 
 
