@@ -272,6 +272,9 @@ def initialize_starter_project(
     generated.extend(
         _copy_tree_files(root / "src" / "agentkit" / "runner", target_dir / "src" / "agentkit" / "runner", force)
     )
+    generated.extend(
+        _copy_tree_files(root / "src" / "agentkit" / "starter", target_dir / "src" / "agentkit" / "starter", force)
+    )
 
     for file_name in ["__init__.py", "__main__.py"]:
         if _copy_file(root / "src" / "agentkit" / file_name, target_dir / "src" / "agentkit" / file_name, force):
@@ -319,6 +322,10 @@ def initialize_starter_project(
             "test_runner_pipeline.py",
             "test_runner_api_server.py",
             "test_runtime_codegen_flow.py",
+            "test_starter_init.py",
+            "test_starter_apply.py",
+            "test_starter_migrate.py",
+            "test_starter_clean.py",
         ]:
             if _copy_file(root / "tests" / file_name, target_dir / "tests" / file_name, force):
                 generated.append(target_dir / "tests" / file_name)
@@ -354,6 +361,7 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
 
 
 
