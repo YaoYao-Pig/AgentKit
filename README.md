@@ -461,3 +461,25 @@ python -m pytest
 5. 把失败上下文记录到 `.agentkit/logs/agentkit-serve.log` 并附带 request_id。
 
 这条规范的目标是避免 Agent 在权限异常时进入“反复试错但结果不可控”的状态。
+
+## 一键跑通 API-only（给隔壁 Agent 用）
+
+在项目根目录执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_api_only_flow.ps1
+```
+
+这个脚本会自动：
+- 启动本地 llm_codegen stub（9000）
+- 启动 agentkit-serve（8787）
+- 先做 health 检查
+- 调 /v1/tasks/run
+- 调 /v1/tasks/verify
+- 输出日志路径（.agentkit/logs/*）
+
+如需保持服务不退出：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_api_only_flow.ps1 -KeepAlive
+```

@@ -15,6 +15,7 @@ def test_initialize_minimal_profile(tmp_path: Path) -> None:
         "docs/generated",
         "skills",
         "examples",
+        "scripts",
         "tests",
     ]:
         assert (target / rel).exists()
@@ -26,6 +27,8 @@ def test_initialize_minimal_profile(tmp_path: Path) -> None:
     assert (target / "examples" / "task.sample.yaml").exists()
     assert (target / "examples" / "api_enforced_demo.py").exists()
     assert (target / "examples" / "task.codegen.sample.yaml").exists()
+    assert (target / "scripts" / "llm_codegen_stub.py").exists()
+    assert (target / "scripts" / "run_api_only_flow.ps1").exists()
     assert (target / "AGENTS.md").exists()
     assert (target / "docs" / "CUSTOMIZATION.md").exists()
 
@@ -62,6 +65,7 @@ def test_initialize_respects_force_flag(tmp_path: Path) -> None:
 
     initialize_starter_project(target_dir=target, project_name="Force Demo", profile_name="minimal", force=True)
     assert "Force Demo" in readme.read_text(encoding="utf-8")
+
 
 
 

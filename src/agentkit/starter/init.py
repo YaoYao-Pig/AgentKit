@@ -262,6 +262,7 @@ def initialize_starter_project(
         target_dir / "docs" / "generated",
         target_dir / "skills",
         target_dir / "examples",
+        target_dir / "scripts",
         target_dir / "tests",
         target_dir / ".github" / "workflows",
     ]
@@ -313,6 +314,10 @@ def initialize_starter_project(
     for example_name in ["mock_pipeline.py", "task.sample.yaml", "task.codegen.sample.yaml", "context_selection_demo.py", "api_enforced_demo.py", "apply_spec.yaml"]:
         if _copy_file(root / "examples" / example_name, target_dir / "examples" / example_name, force):
             generated.append(target_dir / "examples" / example_name)
+
+    for script_name in ["llm_codegen_stub.py", "run_api_only_flow.ps1"]:
+        if _copy_file(root / "scripts" / script_name, target_dir / "scripts" / script_name, force):
+            generated.append(target_dir / "scripts" / script_name)
 
     if profile.include_extra_example:
         if _render_text_file(target_dir / "examples" / "customize_starter.py", CUSTOMIZE_EXAMPLE, force):
@@ -373,6 +378,7 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
 
 
 
