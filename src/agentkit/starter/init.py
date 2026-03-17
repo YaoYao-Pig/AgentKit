@@ -129,6 +129,9 @@ Edit `configs/runtime.yaml`:
 - `require_api_token`: force token auth for API calls
 - `api_token`: token value used by `agentkit-serve`
 - `api_host` / `api_port`: bind address
+- `strict_codegen_mode`: require llm codegen path for code-writing tasks
+- `llm_api_key_env`: required API key env var name
+- `api_log_to_file` / `api_log_file`: persist serve logs for debugging
 """
 
 CUSTOMIZE_EXAMPLE = """from __future__ import annotations
@@ -325,6 +328,7 @@ def initialize_starter_project(
             "test_runner_api_server.py",
             "test_runtime_codegen_flow.py",
             "test_runner_env_check.py",
+            "test_runner_strict_codegen.py",
             "test_starter_init.py",
             "test_starter_apply.py",
             "test_starter_migrate.py",
@@ -364,6 +368,8 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
 
 
 

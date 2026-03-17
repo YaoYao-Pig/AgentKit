@@ -60,10 +60,11 @@ require_api_token: true
 api_token: dev-agentkit-token
 ```
 
-Field meanings:
+\nStrict API codegen mode (recommended for team enforcement):\n\n```yaml\nstrict_codegen_mode: true\nllm_healthcheck_required: true\nllm_endpoint_timeout_sec: 3\nllm_api_key_env: AGENTKIT_LLM_API_KEY\n```\n\nWhen enabled, AgentKit blocks execution unless:\n- action resolves to `llm_codegen`\n- `apply_generated_patch` skill exists\n- `AGENTKIT_LLM_API_KEY` is set\n- (optional) endpoint reachability check passes\n\nField meanings:
 - `api_host` / `api_port`: bind address for AgentKit server
 - `require_api_token`: enforce authenticated API calls
 - `api_token`: server-side token for request authorization (use env-injection in production)
+- `api_log_to_file` / `api_log_file`: persistent service logs (default `.agentkit/logs/agentkit-serve.log`)
 
 \nFor more detailed logs (auth failures, run/verify route handling, LLM forwarding summaries), use:\n\n```bash\nagentkit-serve --workspace . --log-level DEBUG\n```\n## 2) Start the service
 
@@ -258,6 +259,7 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
 
 
 

@@ -62,6 +62,8 @@ def main() -> None:
     p_serve.add_argument("--token")
     p_serve.add_argument("--require-token", action="store_true")
     p_serve.add_argument("--log-level")
+    p_serve.add_argument("--log-file")
+    p_serve.add_argument("--no-log-file", action="store_true")
     p_serve.add_argument("--no-config", action="store_true")
 
     args = parser.parse_args()
@@ -119,9 +121,12 @@ def main() -> None:
             token=args.token,
             require_token=args.require_token,
             log_level=args.log_level,
+            log_file=args.log_file,
+            no_log_file=args.no_log_file,
             no_config=args.no_config,
         )
 
 
 if __name__ == "__main__":
     main()
+

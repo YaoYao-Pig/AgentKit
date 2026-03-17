@@ -21,6 +21,9 @@ def test_config_schema_loading() -> None:
     assert config.runtime.api_port > 0
     assert config.runtime.api_host
     assert config.runtime.api_log_level
+    assert config.runtime.api_log_file
+    assert config.runtime.llm_api_key_env
+    assert config.runtime.llm_endpoint_timeout_sec > 0
     assert "mock_action" in config.skills_index.skills
     assert config.skills_index.skills["mock_action"].adapter == "mock"
     assert "run_tests" in config.skills_index.skills
@@ -55,6 +58,7 @@ Body
         assert False, "expected metadata validation error"
     except KeyError:
         assert True
+
 
 
 

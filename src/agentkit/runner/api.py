@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 import json
+import logging
 
 from agentkit.config.loader import load_full_config
 from agentkit.docs.bootstrap import load_registry_from_templates
@@ -21,7 +22,11 @@ from agentkit.runtime.layers.state import AutoApproveReviewHook, InMemoryStateSt
 from agentkit.runtime.layers.validation import SimpleValidator
 from agentkit.runtime.models import RuntimeOutcome, Task
 
+from .guards import enforce_strict_codegen
 from .task_spec import TaskRunSpec, load_task_run_spec
+
+
+logger = logging.getLogger("agentkit.pipeline")
 
 
 @dataclass(slots=True)
@@ -66,8 +71,7 @@ def _task_spec_metadata(spec: TaskRunSpec) -> dict[str, object]:
     }
 
 
-def _build_engine(workspace: Path, spec: TaskRunSpec) -> DefaultPipelineEngine:
-    config = load_full_config(str(workspace / "configs"))
+def _build_engine(workspace: Path, spec: TaskRunSpec, config) -> DefaultPipelineEngine:
     planner = MinimalPlanner(
         default_action_type=spec.action_type or config.runtime.default_action_type,
         default_action_params=spec.action_params,
@@ -173,6 +177,7 @@ def _write_run_report(workspace: Path, spec: TaskRunSpec, outcome: RuntimeOutcom
         "validation_checklist": spec.validation_checklist,
         "rollback_plan": spec.rollback_plan,
         "risk_points": spec.risk_points,
+        "strict_codegen_mode": bool(outcome.state.metadata.get("strict_codegen_mode", False)),
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(out_path)
@@ -185,18 +190,38 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
         spec_path = workspace_path / spec_path
     spec = load_task_run_spec(str(spec_path))
 
+    config = load_full_config(str(workspace_path / "configs"))
+    enforce_strict_codegen(config, spec)
+
+    logger.info(
+        "task run started task_id=%s action_type=%s strict_codegen=%s workspace=%s",
+        spec.id,
+        spec.action_type or config.runtime.default_action_type,
+        config.runtime.strict_codegen_mode,
+        workspace_path,
+    )
+
     context_report = _write_context_report(workspace_path, spec)
-    engine = _build_engine(workspace_path, spec)
+    engine = _build_engine(workspace_path, spec, config)
     task = _to_task(spec)
     outcome = engine.run(task)
 
     outcome.state.metadata["workspace_root"] = str(workspace_path)
-    outcome.state.metadata["module_rules"] = asdict(load_full_config(str(workspace_path / "configs")).module_rules)
+    outcome.state.metadata["module_rules"] = asdict(config.module_rules)
     outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
+    outcome.state.metadata["strict_codegen_mode"] = config.runtime.strict_codegen_mode
 
     state_path = _write_state(workspace_path, outcome)
     docs = _update_docs(workspace_path, task, outcome)
     run_report = _write_run_report(workspace_path, spec, outcome, docs, context_report)
+
+    logger.info(
+        "task run completed task_id=%s status=%s records=%d retries=%d",
+        spec.id,
+        outcome.status.value,
+        len(outcome.state.records),
+        outcome.state.retries,
+    )
 
     return TaskRunResult(
         task_id=spec.id,
@@ -220,4 +245,8 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
     ]
     missing = [str(path) for path in required if not path.exists()]
     return (len(missing) == 0, missing)
+
+
+
+
 

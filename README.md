@@ -121,10 +121,11 @@ require_api_token: true
 api_token: dev-agentkit-token
 ```
 
-字段说明：
+\n强制 API 写码模式（可选但推荐在团队落地时开启）：\n\n```yaml\nstrict_codegen_mode: true\nllm_healthcheck_required: true\nllm_endpoint_timeout_sec: 3\nllm_api_key_env: AGENTKIT_LLM_API_KEY\n```\n\n开启后会强制：\n- action 必须走 `llm_codegen`\n- 必须存在 `apply_generated_patch` skill\n- 必须设置 `AGENTKIT_LLM_API_KEY`\n- （可选）endpoint 不可达时直接阻断\n\n字段说明：
 - `api_host` / `api_port`：AgentKit 服务监听地址。
 - `require_api_token`：是否强制鉴权。
 - `api_token`：服务端验签 token（建议在生产中改为环境注入，不要明文提交）。
+- `api_log_to_file` / `api_log_file`：是否写入日志文件（默认 `.agentkit/logs/agentkit-serve.log`）。
 
 \n如果你要看更详细日志（含鉴权失败、run/verify 路径、LLM 转发摘要），可以用：\n\n```bash\nagentkit-serve --workspace . --log-level DEBUG\n```\n## 2) 启动服务
 
@@ -440,6 +441,7 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
 
 
