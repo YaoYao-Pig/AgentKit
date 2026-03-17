@@ -194,6 +194,45 @@ skills:
 - `agentkit-apply`：初始化并应用自定义 spec。
 - `python examples/context_selection_demo.py`：上下文控制示例。
 
+## 真实项目接入示例（从已有仓库迁移）
+
+假设你有一个已经开发中的仓库 `LegacyProject/`，希望最小代价接入 AgentKit。
+
+1. 在旧仓库根目录执行迁移（非破坏）：
+
+```bash
+agentkit-migrate --target . --name LegacyProject --profile minimal
+```
+
+2. 检查新增目录与文件（通常会新增，不会覆盖你的业务代码）：
+- `src/agentkit/`
+- `configs/`
+- `docs/templates/`
+- `docs/generated/`
+- `examples/`
+- `tests/`
+- `.github/workflows/agentkit-ci.yml`
+
+3. 按你的仓库边界收紧策略：
+- `configs/module_rules.yaml` 只保留允许写入的路径
+- `configs/policy_rules.yaml` 把高风险动作放入 review
+- `configs/skills_index.yaml` 把 `llm_codegen.endpoint` 改成你的模型网关
+
+4. 启动 API 模式并验证：
+
+```bash
+agentkit-serve --workspace . --require-token --token <your-token>
+python examples/api_enforced_demo.py
+```
+
+5. 在 CI 增加门禁（或保留模板中的门禁）：
+- 必须通过 `agentkit-verify`
+- 缺少 `.agentkit` / `docs/generated` 核心产物即失败
+
+回滚方式（如果你想暂时撤销接入）：
+- 移除 `src/agentkit`、`configs`、`docs/templates`、`docs/generated`、`.agentkit`
+- 移除 CI 里的 AgentKit 步骤
+- 业务代码不应受影响（迁移流程默认是 sidecar 式接入）
 ## 测试
 
 ```bash
@@ -201,3 +240,4 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+

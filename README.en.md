@@ -186,6 +186,45 @@ These artifacts form your execution audit chain.
 - `agentkit-apply`: initialize and apply customization spec
 - `python examples/context_selection_demo.py`: context control demo
 
+## Existing Project Adoption Example
+
+Assume you already have a long-running repo `LegacyProject/` and want to adopt AgentKit with minimal risk.
+
+1. Run non-destructive migration from repo root:
+
+```bash
+agentkit-migrate --target . --name LegacyProject --profile minimal
+```
+
+2. Review newly added scaffold artifacts (should not overwrite business code):
+- `src/agentkit/`
+- `configs/`
+- `docs/templates/`
+- `docs/generated/`
+- `examples/`
+- `tests/`
+- `.github/workflows/agentkit-ci.yml`
+
+3. Tighten boundaries for your repository:
+- `configs/module_rules.yaml`: restrict writeable paths
+- `configs/policy_rules.yaml`: move risky actions to review
+- `configs/skills_index.yaml`: point `llm_codegen.endpoint` to your model gateway
+
+4. Start API mode and validate:
+
+```bash
+agentkit-serve --workspace . --require-token --token <your-token>
+python examples/api_enforced_demo.py
+```
+
+5. Enforce in CI (or keep the provided gate):
+- `agentkit-verify` must pass
+- fail if required `.agentkit` / `docs/generated` artifacts are missing
+
+Rollback path (if you want to temporarily remove adoption):
+- remove `src/agentkit`, `configs`, `docs/templates`, `docs/generated`, `.agentkit`
+- remove AgentKit steps from CI
+- business code should remain unaffected (sidecar-style migration)
 ## Tests
 
 ```bash
@@ -193,3 +232,4 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
