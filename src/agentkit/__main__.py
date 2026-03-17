@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from agentkit.runner.api import run_task, verify_task_run
+from agentkit.runner.serve_cli import run_server
 from agentkit.starter.apply import apply_starter_project
 from agentkit.starter.init import initialize_starter_project
 from agentkit.starter.migrate import migrate_existing_project
@@ -41,6 +42,14 @@ def main() -> None:
     p_verify.add_argument("--task-id", required=True)
     p_verify.add_argument("--workspace", default=".")
 
+    p_serve = sub.add_parser("serve", help="Serve AgentKit run/verify HTTP API")
+    p_serve.add_argument("--workspace", default=".")
+    p_serve.add_argument("--host")
+    p_serve.add_argument("--port", type=int)
+    p_serve.add_argument("--token")
+    p_serve.add_argument("--require-token", action="store_true")
+    p_serve.add_argument("--no-config", action="store_true")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -75,6 +84,15 @@ def main() -> None:
                 print(item)
             raise SystemExit(1)
         print("Verification passed")
+    elif args.command == "serve":
+        run_server(
+            workspace=args.workspace,
+            host=args.host,
+            port=args.port,
+            token=args.token,
+            require_token=args.require_token,
+            no_config=args.no_config,
+        )
 
 
 if __name__ == "__main__":

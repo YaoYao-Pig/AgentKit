@@ -1,2 +1,6 @@
 max_steps: 6
 default_action_type: mock_action
+api_host: 127.0.0.1
+api_port: 8787
+require_api_token: false
+api_token: dev-agentkit-token

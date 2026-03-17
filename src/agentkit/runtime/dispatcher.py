@@ -15,8 +15,16 @@ class SkillDispatcherExecutor(Executor):
     adapters: dict[str, ToolAdapter]
 
     @classmethod
-    def from_skills_index(cls, skills_index: SkillsIndexConfig) -> "SkillDispatcherExecutor":
-        return cls(skills_index=skills_index, adapters=default_adapter_registry())
+    def from_skills_index(
+        cls,
+        skills_index: SkillsIndexConfig,
+        workspace_root: str | None = None,
+        allowed_paths: list[str] | None = None,
+    ) -> "SkillDispatcherExecutor":
+        return cls(
+            skills_index=skills_index,
+            adapters=default_adapter_registry(workspace_root=workspace_root, allowed_paths=allowed_paths),
+        )
 
     def execute(self, action: Action, state: PipelineState) -> ActionResult:
         skill = self.skills_index.skills.get(action.action_type)

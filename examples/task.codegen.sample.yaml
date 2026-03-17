@@ -1,0 +1,24 @@
+id: sample-codegen-001
+title: LLM Assisted Code Change
+goal: Generate and apply a small code change through llm adapter and patch adapter
+constraints:
+  - only write under src/
+success_criteria:
+  - src/generated_from_llm.txt exists
+input_sources:
+  - docs/generated/task_model.md
+affected_files:
+  - src/generated_from_llm.txt
+validation_checklist:
+  - file exists
+rollback_plan:
+  - remove generated file
+risk_points:
+  - model output may be incorrect
+module_hints:
+  - src/
+action_type: llm_codegen
+action_params:
+  prompt: "Create one patch that writes src/generated_from_llm.txt with a short status line."
+  # override endpoint for your own model gateway if needed
+  endpoint: "http://127.0.0.1:9000/v1/generate"

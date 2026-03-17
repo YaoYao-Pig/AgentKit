@@ -23,6 +23,8 @@ def test_initialize_minimal_profile(tmp_path: Path) -> None:
     assert (target / "src" / "agentkit" / "runner" / "api.py").exists()
     assert (target / ".github" / "workflows" / "agentkit-ci.yml").exists()
     assert (target / "examples" / "task.sample.yaml").exists()
+    assert (target / "examples" / "api_enforced_demo.py").exists()
+    assert (target / "examples" / "task.codegen.sample.yaml").exists()
     assert (target / "AGENTS.md").exists()
     assert (target / "docs" / "CUSTOMIZATION.md").exists()
 
@@ -53,3 +55,5 @@ def test_initialize_respects_force_flag(tmp_path: Path) -> None:
 
     initialize_starter_project(target_dir=target, project_name="Force Demo", profile_name="minimal", force=True)
     assert "Force Demo" in readme.read_text(encoding="utf-8")
+
+

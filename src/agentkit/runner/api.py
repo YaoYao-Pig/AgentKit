@@ -78,8 +78,16 @@ def _build_engine(workspace: Path, spec: TaskRunSpec) -> DefaultPipelineEngine:
         ),
         capability_registry=StaticCapabilityRegistry(action_types=list(config.skills_index.skills.keys())),
         planner=planner,
-        executor=SkillDispatcherExecutor.from_skills_index(config.skills_index),
-        validator=SimpleValidator(blocked_action_types=set(config.policy_rules.blocked_action_types)),
+        executor=SkillDispatcherExecutor.from_skills_index(
+            config.skills_index,
+            workspace_root=str(workspace),
+            allowed_paths=config.module_rules.allowed_paths,
+        ),
+        validator=SimpleValidator(
+            blocked_action_types=set(config.policy_rules.blocked_action_types),
+            review_action_types=set(config.policy_rules.review_action_types),
+            allowed_paths=list(config.module_rules.allowed_paths),
+        ),
         state_store=InMemoryStateStore(),
         review_hook=AutoApproveReviewHook(approve=True),
         max_steps=config.runtime.max_steps,
@@ -182,7 +190,10 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
     task = _to_task(spec)
     outcome = engine.run(task)
 
+    outcome.state.metadata["workspace_root"] = str(workspace_path)
+    outcome.state.metadata["module_rules"] = asdict(load_full_config(str(workspace_path / "configs")).module_rules)
     outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
+
     state_path = _write_state(workspace_path, outcome)
     docs = _update_docs(workspace_path, task, outcome)
     run_report = _write_run_report(workspace_path, spec, outcome, docs, context_report)
@@ -209,3 +220,4 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
     ]
     missing = [str(path) for path in required if not path.exists()]
     return (len(missing) == 0, missing)
+

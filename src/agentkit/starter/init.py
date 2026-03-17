@@ -34,6 +34,9 @@ pip install -e .
 python -m pytest
 agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
+
+# optional: API-enforced mode
+agentkit-serve --workspace . --require-token --token dev-agentkit-token
 ```
 
 ## Project Layout
@@ -79,7 +82,8 @@ This repository is a reusable agent pipeline project scaffold.
    - handoff_note
 5. For destructive/high-risk actions, request human approval first.
 6. Task execution must enter via `agentkit-run` or `python -m agentkit run --task ...` before business-code edits.
-7. Final output must include:
+7. If API mode is enabled, tasks must be triggered through `agentkit-serve` endpoints with valid token.
+8. Final output must include:
    - changed files
    - evidence references
    - remaining risks/todos
@@ -112,9 +116,17 @@ Edit files in `docs/templates/`:
 Override output paths during registry loading (code example in `examples/customize_starter.py`).
 
 ## 5) Tool Adapters and Skills
-Edit `configs/skills_index.yaml` to bind action types to adapters (`mock`, `shell`, `python_callable`).
+Edit `configs/skills_index.yaml` to bind action types to adapters (`mock`, `shell`, `python_callable`, `llm_http`, `file_patch`).
 - shell skills use `command` templates
 - python_callable skills use `module` + `function`
+- llm_http skills call your model gateway and return structured JSON
+- file_patch skills apply controlled writes from structured patch lists
+
+## 6) API Enforcement
+Edit `configs/runtime.yaml`:
+- `require_api_token`: force token auth for API calls
+- `api_token`: token value used by `agentkit-serve`
+- `api_host` / `api_port`: bind address
 """
 
 CUSTOMIZE_EXAMPLE = """from __future__ import annotations
@@ -286,7 +298,7 @@ def initialize_starter_project(
         if _copy_file(root / "docs" / "templates" / file_name, target_dir / "docs" / "templates" / file_name, force):
             generated.append(target_dir / "docs" / "templates" / file_name)
 
-    for example_name in ["mock_pipeline.py", "task.sample.yaml", "context_selection_demo.py", "apply_spec.yaml"]:
+    for example_name in ["mock_pipeline.py", "task.sample.yaml", "task.codegen.sample.yaml", "context_selection_demo.py", "api_enforced_demo.py", "apply_spec.yaml"]:
         if _copy_file(root / "examples" / example_name, target_dir / "examples" / example_name, force):
             generated.append(target_dir / "examples" / example_name)
 
@@ -305,6 +317,8 @@ def initialize_starter_project(
             "test_runtime_dispatcher.py",
             "test_context_selector.py",
             "test_runner_pipeline.py",
+            "test_runner_api_server.py",
+            "test_runtime_codegen_flow.py",
         ]:
             if _copy_file(root / "tests" / file_name, target_dir / "tests" / file_name, force):
                 generated.append(target_dir / "tests" / file_name)
@@ -340,3 +354,9 @@ def initialize_starter_project(
         target_dir=str(target_dir),
         generated_paths=unique_paths,
     )
+
+
+
+
+
+

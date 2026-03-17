@@ -43,6 +43,10 @@ class ModuleRulesConfig:
 class RuntimeConfig:
     max_steps: int = 5
     default_action_type: str = "mock_action"
+    api_host: str = "127.0.0.1"
+    api_port: int = 8787
+    require_api_token: bool = False
+    api_token: str = ""
 
 
 @dataclass(slots=True)
@@ -52,3 +56,4 @@ class FullConfig:
     policy_rules: PolicyRulesConfig
     module_rules: ModuleRulesConfig
     runtime: RuntimeConfig
+

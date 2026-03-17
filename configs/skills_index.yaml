@@ -28,3 +28,17 @@ skills:
     risk_level: low
     adapter: shell
     command: "python -m compileall src"
+
+  llm_codegen:
+    purpose: call a model API to generate structured code patch proposals
+    risk_level: medium
+    adapter: llm_http
+    static_params:
+      endpoint: "http://127.0.0.1:9000/v1/generate"
+      model: "generic-codegen"
+      api_key_env: "AGENTKIT_LLM_API_KEY"
+
+  apply_generated_patch:
+    purpose: apply structured patch operations under module rules
+    risk_level: medium
+    adapter: file_patch

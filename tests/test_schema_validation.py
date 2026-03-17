@@ -18,10 +18,15 @@ def test_config_schema_loading() -> None:
     config = load_full_config("configs")
     assert config.system_profile.agent_name
     assert config.runtime.max_steps > 0
+    assert config.runtime.api_port > 0
+    assert config.runtime.api_host
     assert "mock_action" in config.skills_index.skills
     assert config.skills_index.skills["mock_action"].adapter == "mock"
     assert "run_tests" in config.skills_index.skills
     assert "run_lint" in config.skills_index.skills
+    assert "llm_codegen" in config.skills_index.skills
+    assert config.skills_index.skills["llm_codegen"].adapter == "llm_http"
+    assert "apply_generated_patch" in config.skills_index.skills
 
 
 def test_template_metadata_schema_requires_title(tmp_path: Path) -> None:
@@ -49,3 +54,5 @@ Body
         assert False, "expected metadata validation error"
     except KeyError:
         assert True
+
+
