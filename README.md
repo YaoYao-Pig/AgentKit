@@ -505,3 +505,26 @@ agentkit-errors --workspace . --task-id <task_id> --save 1 --mode block --note "
 
 规则文件路径：
 - `.agentkit/feedback/avoidance_rules.json`
+
+## 严格工业模式（全流程 API 写码）
+
+开启后（`configs/runtime.yaml`）：
+
+```yaml
+strict_codegen_mode: true
+strict_industrial_mode: true
+```
+
+并在 `configs/policy_rules.yaml` 中设置：
+
+```yaml
+forbid_manual_business_edits: true
+require_api_patch_for_paths:
+  - src/
+  - tests/
+```
+
+效果：
+- 首次生成和后续每一轮修复都必须来自 `llm_codegen -> apply_generated_patch`。
+- 若 `src/` / `tests/` 有不在 patch ledger 的手工改动，`run` 会在执行前直接阻断，`verify` 也会失败。
+- 同一 task 多轮执行会累计到同一个 ledger 的 `rounds` 字段，便于追踪 TE 循环。

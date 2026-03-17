@@ -38,7 +38,7 @@ class _WriterStubHandler(BaseHTTPRequestHandler):
         self.wfile.write(out)
 
 
-def _write_runtime_yaml(path: Path, endpoint: str) -> None:
+def _write_runtime_yaml(path: Path, endpoint: str, *, strict_industrial: bool = False) -> None:
     path.write_text(
         "\n".join(
             [
@@ -52,6 +52,7 @@ def _write_runtime_yaml(path: Path, endpoint: str) -> None:
                 "api_log_to_file: true",
                 "api_log_file: .agentkit/logs/agentkit-serve.log",
                 "strict_codegen_mode: true",
+                f"strict_industrial_mode: {'true' if strict_industrial else 'false'}",
                 "llm_healthcheck_required: false",
                 "llm_endpoint_timeout_sec: 3",
                 "llm_api_key_env: AGENTKIT_LLM_API_KEY",
@@ -139,7 +140,7 @@ def _init_git_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-m", "baseline"], cwd=path, check=True, capture_output=True, text=True)
 
 
-def _setup_workspace(tmp_path: Path, forbid_manual: bool) -> tuple[Path, Path]:
+def _setup_workspace(tmp_path: Path, forbid_manual: bool, *, strict_industrial: bool = False) -> tuple[Path, Path]:
     workspace = tmp_path / "project"
     initialize_starter_project(target_dir=workspace, project_name="ApiOnly", profile_name="minimal", force=True)
 
@@ -149,7 +150,7 @@ def _setup_workspace(tmp_path: Path, forbid_manual: bool) -> tuple[Path, Path]:
     host, port = httpd.server_address
     endpoint = f"http://{host}:{port}/v1/generate"
 
-    _write_runtime_yaml(workspace / "configs" / "runtime.yaml", endpoint)
+    _write_runtime_yaml(workspace / "configs" / "runtime.yaml", endpoint, strict_industrial=strict_industrial)
     _write_skills_yaml(workspace / "configs" / "skills_index.yaml", endpoint)
     _write_policy_yaml(workspace / "configs" / "policy_rules.yaml", forbid_manual=forbid_manual)
     _write_task_yaml(workspace / "examples" / "task.api_only.yaml")
@@ -196,6 +197,33 @@ def test_strict_api_only_verify_blocks_manual_business_edit(tmp_path: Path, monk
         ok, missing = verify_task_run(workspace=str(workspace), task_id="api-only-task-001")
         assert not ok
         assert any("manual edit detected" in item for item in missing)
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_strict_industrial_mode_blocks_manual_edits_before_next_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    if subprocess.run(["git", "--version"], capture_output=True, text=True).returncode != 0:
+        pytest.skip("git is required for strict industrial mode")
+
+    workspace, httpd = _setup_workspace(tmp_path, forbid_manual=True, strict_industrial=True)
+    monkeypatch.setenv("AGENTKIT_LLM_API_KEY", "dummy-key")
+
+    try:
+        _init_git_repo(workspace)
+        run_task(workspace=str(workspace), task_file=str(workspace / "examples" / "task.api_only.yaml"))
+
+        run_task(workspace=str(workspace), task_file=str(workspace / "examples" / "task.api_only.yaml"))
+        ledger = json.loads((workspace / ".agentkit" / "patches" / "api-only-task-001.json").read_text(encoding="utf-8"))
+        assert len(ledger.get("rounds", [])) >= 2
+
+        manual = workspace / "src" / "manual_hotfix.txt"
+        manual.parent.mkdir(parents=True, exist_ok=True)
+        manual.write_text("manual edit", encoding="utf-8")
+
+        with pytest.raises(ValueError) as exc:
+            run_task(workspace=str(workspace), task_file=str(workspace / "examples" / "task.api_only.yaml"))
+        assert "manual edit detected before run" in str(exc.value)
     finally:
         httpd.shutdown()
         httpd.server_close()

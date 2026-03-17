@@ -8,6 +8,7 @@ api_log_level: INFO
 api_log_to_file: true
 api_log_file: .agentkit/logs/agentkit-serve.log
 strict_codegen_mode: false
+strict_industrial_mode: false
 llm_healthcheck_required: false
 llm_endpoint_timeout_sec: 3
 llm_api_key_env: AGENTKIT_LLM_API_KEY

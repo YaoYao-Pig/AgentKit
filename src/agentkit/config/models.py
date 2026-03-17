@@ -53,6 +53,7 @@ class RuntimeConfig:
     api_log_to_file: bool = True
     api_log_file: str = ".agentkit/logs/agentkit-serve.log"
     strict_codegen_mode: bool = False
+    strict_industrial_mode: bool = False
     llm_healthcheck_required: bool = False
     llm_endpoint_timeout_sec: int = 3
     llm_api_key_env: str = "AGENTKIT_LLM_API_KEY"
@@ -65,7 +66,3 @@ class FullConfig:
     policy_rules: PolicyRulesConfig
     module_rules: ModuleRulesConfig
     runtime: RuntimeConfig
-
-
-
-

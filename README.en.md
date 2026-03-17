@@ -287,3 +287,26 @@ agentkit-errors --workspace . --task-id <task_id> --save 1 --mode block --note "
 
 Rules are stored at:
 - `.agentkit/feedback/avoidance_rules.json`
+
+## Strict Industrial Mode (API-Only Coding Across Loops)
+
+Enable in `configs/runtime.yaml`:
+
+```yaml
+strict_codegen_mode: true
+strict_industrial_mode: true
+```
+
+And in `configs/policy_rules.yaml`:
+
+```yaml
+forbid_manual_business_edits: true
+require_api_patch_for_paths:
+  - src/
+  - tests/
+```
+
+Behavior:
+- First generation and every follow-up fix must come from `llm_codegen -> apply_generated_patch`.
+- If `src/`/`tests/` contain edits not backed by patch ledger, `run` is blocked before execution and `verify` fails.
+- Multi-round runs for the same task accumulate under ledger `rounds` for TE-loop traceability.

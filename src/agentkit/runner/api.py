@@ -203,6 +203,31 @@ def _extract_codegen_payload(outcome: RuntimeOutcome) -> tuple[str, list[dict[st
     return request_id, normalized
 
 
+def _read_task_ledger(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def _collect_all_touched_files(workspace: Path) -> set[str]:
+    out_dir = workspace / ".agentkit" / "patches"
+    if not out_dir.exists():
+        return set()
+
+    touched: set[str] = set()
+    for ledger_path in sorted(out_dir.glob("*.json")):
+        payload = _read_task_ledger(ledger_path)
+        for item in payload.get("touched_files", []):
+            touched.add(str(item).replace("\\", "/"))
+    return touched
+
+
 def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome: RuntimeOutcome) -> dict[str, object]:
     request_id, patches = _extract_codegen_payload(outcome)
 
@@ -220,10 +245,6 @@ def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome
     if result.status != "success":
         raise ValueError(f"failed to apply generated patches: {result.output}")
 
-    written = result.output.get("written", [])
-    if not isinstance(written, list):
-        written = []
-
     patch_entries: list[dict[str, object]] = []
     touched_files: list[str] = []
     for item in patches:
@@ -240,25 +261,42 @@ def _apply_generated_patches(workspace: Path, config, spec: TaskRunSpec, outcome
             }
         )
 
+    out_dir = workspace / ".agentkit" / "patches"
+    _ensure_dir(out_dir)
+    out_path = out_dir / f"{spec.id}.json"
+
+    previous = _read_task_ledger(out_path)
+    previous_entries = previous.get("patches", []) if isinstance(previous.get("patches"), list) else []
+    previous_touched = previous.get("touched_files", []) if isinstance(previous.get("touched_files"), list) else []
+    previous_rounds = previous.get("rounds", []) if isinstance(previous.get("rounds"), list) else []
+
+    round_index = len(previous_rounds) + 1
+    round_entry = {
+        "round": round_index,
+        "request_id": request_id,
+        "patch_count": len(patch_entries),
+        "touched_files": sorted(set(touched_files)),
+    }
+
+    combined_entries = list(previous_entries) + patch_entries
+    combined_touched = sorted(set(str(x).replace("\\", "/") for x in previous_touched + touched_files))
     ledger = {
         "task_id": spec.id,
         "request_id": request_id,
         "action_type": "llm_codegen",
-        "patch_count": len(patch_entries),
-        "patches": patch_entries,
-        "touched_files": sorted(set(touched_files)),
+        "patch_count": len(combined_entries),
+        "patches": combined_entries,
+        "touched_files": combined_touched,
+        "rounds": previous_rounds + [round_entry],
     }
-
-    out_dir = workspace / ".agentkit" / "patches"
-    _ensure_dir(out_dir)
-    out_path = out_dir / f"{spec.id}.json"
     out_path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
 
     logger.info(
-        "strict codegen patches applied task_id=%s request_id=%s patches=%d",
+        "strict codegen patches applied task_id=%s request_id=%s patches=%d rounds=%d",
         spec.id,
         request_id,
         len(patch_entries),
+        len(ledger["rounds"]),
     )
     return {"ledger_path": str(out_path), "request_id": request_id, "touched_files": ledger["touched_files"]}
 
@@ -303,6 +341,7 @@ def _write_run_report(
         "rollback_plan": spec.rollback_plan,
         "risk_points": spec.risk_points,
         "strict_codegen_mode": bool(outcome.state.metadata.get("strict_codegen_mode", False)),
+        "strict_industrial_mode": bool(outcome.state.metadata.get("strict_industrial_mode", False)),
         "patch_ledger": outcome.state.metadata.get("patch_ledger"),
         "patch_request_id": outcome.state.metadata.get("patch_request_id"),
         "error_report": error_report_path,
@@ -311,10 +350,23 @@ def _write_run_report(
     return str(out_path)
 
 
+def _is_git_repo(workspace: Path) -> bool:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(workspace), "rev-parse", "--is-inside-work-tree"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0 and completed.stdout.strip().lower() == "true"
+
+
 def _git_changed_files(workspace: Path) -> list[str]:
     try:
         completed = subprocess.run(
-            ["git", "-C", str(workspace), "status", "--porcelain"],
+            ["git", "-C", str(workspace), "status", "--porcelain", "--untracked-files=all"],
             text=True,
             capture_output=True,
             check=False,
@@ -334,6 +386,21 @@ def _git_changed_files(workspace: Path) -> list[str]:
             continue
         changed.append(path.replace("\\", "/"))
     return sorted(set(changed))
+
+
+def _manual_edit_violations(
+    workspace: Path,
+    protected_prefixes: list[str],
+    allowed_touched_files: set[str],
+) -> list[str]:
+    violations: list[str] = []
+    changed = _git_changed_files(workspace)
+    for changed_file in changed:
+        if not any(changed_file.startswith(prefix) for prefix in protected_prefixes):
+            continue
+        if changed_file not in allowed_touched_files:
+            violations.append(changed_file)
+    return sorted(set(violations))
 
 
 def run_task(workspace: str, task_file: str) -> TaskRunResult:
@@ -363,11 +430,25 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
 
         enforce_strict_codegen(config, spec)
 
+        if config.runtime.strict_industrial_mode:
+            if not _is_git_repo(workspace_path):
+                raise ValueError("strict_industrial_mode requires workspace to be a git repository")
+            protected_prefixes = [str(x).replace("\\", "/") for x in config.policy_rules.require_api_patch_for_paths]
+            if config.policy_rules.forbid_manual_business_edits and protected_prefixes:
+                known_api_touched = _collect_all_touched_files(workspace_path)
+                violations = _manual_edit_violations(workspace_path, protected_prefixes, known_api_touched)
+                if violations:
+                    raise ValueError(
+                        "manual edit detected before run outside API patch ledger:\n"
+                        + "\n".join(f"- {item}" for item in violations)
+                    )
+
         logger.info(
-            "task run started task_id=%s action_type=%s strict_codegen=%s workspace=%s",
+            "task run started task_id=%s action_type=%s strict_codegen=%s strict_industrial=%s workspace=%s",
             spec.id,
             action_type,
             config.runtime.strict_codegen_mode,
+            config.runtime.strict_industrial_mode,
             workspace_path,
         )
 
@@ -380,6 +461,7 @@ def run_task(workspace: str, task_file: str) -> TaskRunResult:
         outcome.state.metadata["module_rules"] = asdict(config.module_rules)
         outcome.state.metadata["task_spec"] = _task_spec_metadata(spec)
         outcome.state.metadata["strict_codegen_mode"] = config.runtime.strict_codegen_mode
+        outcome.state.metadata["strict_industrial_mode"] = config.runtime.strict_industrial_mode
 
         if config.runtime.strict_codegen_mode and outcome.status.value == "COMPLETED":
             protocol = _apply_generated_patches(workspace_path, config, spec, outcome)
@@ -439,18 +521,20 @@ def verify_task_run(workspace: str, task_id: str) -> tuple[bool, list[str]]:
         ledger_path = base / ".agentkit" / "patches" / f"{task_id}.json"
         if not ledger_path.exists():
             missing.append(str(ledger_path))
-        else:
-            payload = json.loads(ledger_path.read_text(encoding="utf-8"))
-            touched_files = [str(x).replace("\\", "/") for x in payload.get("touched_files", [])]
-            protected_prefixes = [str(x).replace("\\", "/") for x in config.policy_rules.require_api_patch_for_paths]
-            changed = _git_changed_files(base)
 
-            if config.policy_rules.forbid_manual_business_edits and protected_prefixes:
-                for changed_file in changed:
-                    if any(changed_file.startswith(prefix) for prefix in protected_prefixes):
-                        if changed_file not in touched_files:
-                            missing.append(
-                                f"manual edit detected outside API patch ledger: {changed_file}"
-                            )
+        protected_prefixes = [str(x).replace("\\", "/") for x in config.policy_rules.require_api_patch_for_paths]
+        if config.policy_rules.forbid_manual_business_edits and protected_prefixes:
+            if config.runtime.strict_industrial_mode and not _is_git_repo(base):
+                missing.append("strict_industrial_mode requires workspace to be a git repository")
+            else:
+                if config.runtime.strict_industrial_mode:
+                    allowed_touched = _collect_all_touched_files(base)
+                else:
+                    payload = _read_task_ledger(ledger_path)
+                    allowed_touched = {str(x).replace("\\", "/") for x in payload.get("touched_files", [])}
+                violations = _manual_edit_violations(base, protected_prefixes, allowed_touched)
+                for changed_file in violations:
+                    missing.append(f"manual edit detected outside API patch ledger: {changed_file}")
 
     return (len(missing) == 0, missing)
+

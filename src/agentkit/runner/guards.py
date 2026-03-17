@@ -74,10 +74,21 @@ def enforce_strict_codegen(config: FullConfig, spec: TaskRunSpec) -> None:
     if not prompt:
         raise ValueError("strict_codegen_mode requires task action_params.prompt")
 
+    if runtime.strict_industrial_mode:
+        if not config.policy_rules.forbid_manual_business_edits:
+            raise ValueError(
+                "strict_industrial_mode requires policy_rules.forbid_manual_business_edits=true"
+            )
+        if not config.policy_rules.require_api_patch_for_paths:
+            raise ValueError(
+                "strict_industrial_mode requires non-empty policy_rules.require_api_patch_for_paths"
+            )
+
     logger.info(
-        "strict_codegen_mode checks passed action=%s endpoint=%s key_env=%s healthcheck=%s",
+        "strict_codegen_mode checks passed action=%s endpoint=%s key_env=%s healthcheck=%s strict_industrial=%s",
         chosen_action,
         endpoint,
         key_env_name,
         runtime.llm_healthcheck_required,
+        runtime.strict_industrial_mode,
     )
