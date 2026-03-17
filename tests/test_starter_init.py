@@ -29,6 +29,12 @@ def test_initialize_minimal_profile(tmp_path: Path) -> None:
     assert (target / "AGENTS.md").exists()
     assert (target / "docs" / "CUSTOMIZATION.md").exists()
 
+    runtime_config = (target / "configs" / "runtime.yaml").read_text(encoding="utf-8")
+    assert "strict_codegen_mode: false" in runtime_config
+
+    sample_task = (target / "examples" / "task.sample.yaml").read_text(encoding="utf-8")
+    assert "type: mock_action" in sample_task
+
     assert (target / "docs" / "generated" / "project_charter.md").exists()
     assert (target / "docs" / "generated" / "task_model.md").exists()
     assert (target / "docs" / "generated" / "decision_log.md").exists()
@@ -56,6 +62,7 @@ def test_initialize_respects_force_flag(tmp_path: Path) -> None:
 
     initialize_starter_project(target_dir=target, project_name="Force Demo", profile_name="minimal", force=True)
     assert "Force Demo" in readme.read_text(encoding="utf-8")
+
 
 
 
