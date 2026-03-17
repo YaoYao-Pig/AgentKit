@@ -2,24 +2,39 @@
 
 # AgentKit Starter
 
-AgentKit Starter 是一个可迁移、可扩展的 Agent Pipeline 脚手架。
+AgentKit Starter 不是一个业务应用，而是一个可复用的 Agent 执行框架脚手架。
 
-## 你现在能得到什么
+它的核心目标不是“帮你多跑几条命令”，而是把 Agent 的工作从“聊天行为”升级成“可审计、可复现、可治理”的工程流程。
 
-- 统一任务入口：`agentkit-run`
-- 任务产物校验：`agentkit-verify`
-- API 强制入口：`agentkit-serve`
-- 状态与审计产物：`.agentkit/context|state|runs`
-- 自动文档更新：`docs/generated/*`
-- 可插拔工具能力：`skills_index.yaml` + adapter dispatcher（mock/shell/python_callable/llm_http/file_patch）
+## 这套流程的意义（先回答为什么）
 
-## 安装
+在真实项目里，纯对话式 Agent 常见问题是：
+- 同样需求，执行路径不稳定，结果不可复现。
+- 只看聊天记录，无法准确还原“改了什么、为什么改、如何回滚”。
+- 规则只在提示词里，缺少系统级强制。
+
+AgentKit 解决的是这三件事：
+- **强制入口**：任务必须进入 `run/verify` 链路，不靠 Agent 自觉。
+- **结构化留痕**：状态、决策、文档、验证结果都落盘。
+- **可控执行**：模型调用、工具调用、文件写入都经过配置和策略门禁。
+
+一句话：你得到的是“可治理的 Agent 工程系统”，不是“一次性的提示词技巧”。
+
+## AgentKit 在项目中的角色
+
+- **你（人）**：给业务目标、边界、验收标准。
+- **交互式 Agent**：理解需求、组织任务、调用 AgentKit API。
+- **AgentKit Runtime**：负责状态机推进、策略校验、执行调度、文档更新。
+- **Adapter 层**：对接 shell / python / LLM 网关 / file patch 等具体执行能力。
+- **CI**：最终门禁（没有产物、没有验证，不允许通过）。
+
+## 快速开始
 
 ```bash
 pip install -e .
 ```
 
-## 快速开始（CLI）
+### CLI 最小链路
 
 ```bash
 agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
@@ -29,74 +44,99 @@ agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 ```
 
-## API 强制模式
+## API 强制模式（推荐生产使用）
 
-可选的代码生成闭环：
-- `llm_http` 调用你的模型网关产出结构化 patch
-- `file_patch` 在 `module_rules.allowed_paths` 约束下写入代码文件
+## 1) 配置 API 服务
 
-1. 在 `configs/runtime.yaml` 开启：
+编辑 `configs/runtime.yaml`：
 
 ```yaml
-require_api_token: true
-api_token: dev-agentkit-token
+max_steps: 6
+default_action_type: mock_action
 api_host: 127.0.0.1
 api_port: 8787
+require_api_token: true
+api_token: dev-agentkit-token
 ```
 
-2. 启动 API 服务：
+字段说明：
+- `api_host` / `api_port`：AgentKit 服务监听地址。
+- `require_api_token`：是否强制鉴权。
+- `api_token`：服务端验签 token（建议在生产中改为环境注入，不要明文提交）。
+
+## 2) 启动服务
 
 ```bash
 agentkit-serve --workspace .
 ```
 
-3. 通过 API 执行任务（示例脚本）：
+启动后会提供接口：
+- `GET /health`
+- `POST /v1/tasks/run`
+- `POST /v1/tasks/verify`
+
+## 3) 调用接口
+
+示例脚本：
 
 ```bash
 python examples/api_enforced_demo.py
 ```
 
-你也可以直接调用接口：
-- `POST /v1/tasks/run` body: `{ "task": "examples/task.sample.yaml" }`
-- `POST /v1/tasks/verify` body: `{ "task_id": "sample-task-001" }`
-- Header: `Authorization: Bearer <api_token>`
+或直接调用：
 
-## 与交互式 Agent 的配合
+```bash
+curl -X POST "http://127.0.0.1:8787/v1/tasks/run" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-agentkit-token" \
+  -d '{"task":"examples/task.sample.yaml"}'
+```
 
-推荐约束方式：
-1. 你只给 Agent 业务需求，不直接让它裸改代码。
-2. Agent 先生成/更新 task spec 与文档。
-3. Agent 必须通过 `agentkit-serve` 调用 `/v1/tasks/run` 执行。
-4. Agent 完成后必须调用 `/v1/tasks/verify`。
-5. CI 再做二次门禁。
+```bash
+curl -X POST "http://127.0.0.1:8787/v1/tasks/verify" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-agentkit-token" \
+  -d '{"task_id":"sample-task-001"}'
+```
 
-这样可以把“对话”变成“可审计执行链”，而不是仅靠提示词约束。
-## 强制入口说明
+## 正确的交互模式（你和 Agent 应该怎么说）
 
-- `agentkit-run`：CLI 任务入口
-- `agentkit-verify`：CLI 产物校验入口
-- `agentkit-serve`：API 任务入口（支持 token 鉴权）
-- 推荐在 CI 中把 `agentkit-verify` 设为必过项（仓库已提供 `.github/workflows/agentkit-ci.yml`）
+推荐把对话协议固定为：
 
-## Task Spec（实现驱动字段）
+1. 你只给“业务目标 + 约束 + 验收”，不要直接说“去改哪个文件第几行”。
+2. 要求 Agent 先建任务，再执行：
+   - 先生成/更新 task spec
+   - 再调用 `/v1/tasks/run`
+3. 要求 Agent 结束前必须调用 `/v1/tasks/verify`。
+4. 要求 Agent 输出：
+   - 改动文件清单
+   - 验证证据
+   - 风险与回滚点
 
-示例：`examples/task.sample.yaml`
+可直接复用的提示模板：
 
-关键字段：
-- `affected_files`
-- `validation_checklist`
-- `rollback_plan`
-- `risk_points`
+```text
+请按 AgentKit 协议执行本需求：
+1) 先更新或创建 task spec（含 affected_files / validation_checklist / rollback_plan / risk_points）
+2) 通过 agentkit-serve 调用 /v1/tasks/run 执行
+3) 执行后调用 /v1/tasks/verify
+4) 输出变更清单、验证结果、剩余风险
+不要绕过 AgentKit 直接裸改代码。
+```
 
-这些字段会进入状态与 `docs/generated/task_model.md`，用于约束实现路线。
+## 代码生成闭环（LLM -> Patch -> 受控写入）
 
-## 自定义工具（Adapter）
+你现在可以走这条链路：
+- `llm_http`：调用你的模型网关，产出结构化 JSON（可包含 patch 提议）。
+- `file_patch`：根据 patch 写文件。
+- `module_rules.allowed_paths`：限制可写路径，越界直接 deny。
 
-在 `configs/skills_index.yaml` 声明 skill：
+默认技能配置示例（`configs/skills_index.yaml`）：
 
 ```yaml
 skills:
   llm_codegen:
+    purpose: call a model API to generate structured code patch proposals
     adapter: llm_http
     static_params:
       endpoint: "http://127.0.0.1:9000/v1/generate"
@@ -104,21 +144,55 @@ skills:
       api_key_env: "AGENTKIT_LLM_API_KEY"
 
   apply_generated_patch:
+    purpose: apply structured patch operations under module rules
     adapter: file_patch
 ```
 
-## 上下文选择器
+任务样例见：`examples/task.codegen.sample.yaml`。
 
-使用 `ContextSelector` 控制上下文规模，避免全量文档污染模型输入。
+## 策略与安全边界
 
-```bash
-python examples/context_selection_demo.py
-```
+关键控制面：
+- `configs/policy_rules.yaml`
+  - `blocked_action_types`：直接拒绝。
+  - `review_action_types`：进入人工审核分支。
+- `configs/module_rules.yaml`
+  - `allowed_paths`：白名单路径。
+- `SimpleValidator`
+  - pre-check：动作类型 + 路径安全。
+  - post-check：执行结果状态。
+
+建议：
+- 把高风险 skill 放入 `review_action_types`。
+- 把 `allowed_paths` 收紧到必要目录。
+- 在 CI 中强制 `agentkit-verify`。
+
+## 产物与可追溯性
+
+运行后会生成：
+- `.agentkit/context/*.json`：上下文选择报告。
+- `.agentkit/state/*.json`：状态机执行状态。
+- `.agentkit/runs/*.json`：运行报告。
+- `docs/generated/*.md`：可交接文档（task_model/decision_log/handoff_note 等）。
+
+这些产物一起构成“任务审计链”。
+
+## 常见误区
+
+- 误区 1：只让 Agent 对话，不要求 run/verify。
+  - 结果：流程不可追踪，约束难落地。
+- 误区 2：把 token 直接提交到仓库。
+  - 结果：凭据泄露风险。
+- 误区 3：`allowed_paths` 设得太宽。
+  - 结果：边界失效，写入风险扩大。
+- 误区 4：只看聊天总结，不看产物文件。
+  - 结果：交接困难、复盘困难。
 
 ## 其他命令
 
-- `agentkit-migrate`：已有项目非破坏接入
-- `agentkit-apply`：初始化并应用定制 spec
+- `agentkit-migrate`：已有项目非破坏接入。
+- `agentkit-apply`：初始化并应用自定义 spec。
+- `python examples/context_selection_demo.py`：上下文控制示例。
 
 ## 测试
 
@@ -126,4 +200,4 @@ python examples/context_selection_demo.py
 python -m pytest
 ```
 
-
+当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。

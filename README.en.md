@@ -2,24 +2,39 @@
 
 # AgentKit Starter
 
-AgentKit Starter is a migration-friendly scaffold for Agent Pipeline projects.
+AgentKit Starter is not a business app. It is a reusable scaffold for building governed, auditable agent execution pipelines.
 
-## What you get
+Its main purpose is not to run more commands. Its purpose is to turn agent work from chat-only behavior into a reproducible engineering process.
 
-- Enforced task entry: `agentkit-run`
-- Artifact gate: `agentkit-verify`
-- API enforced entry: `agentkit-serve`
-- Runtime artifacts: `.agentkit/context|state|runs`
-- Automatic docs updates: `docs/generated/*`
-- Pluggable tool execution: `skills_index.yaml` + adapter dispatcher (mock/shell/python_callable/llm_http/file_patch)
+## Why this process matters
 
-## Install
+In real projects, pure chat-driven agent workflows usually fail in three ways:
+- same request, different execution path, poor reproducibility
+- hard to reconstruct what changed and why from chat history alone
+- rules exist only in prompts, with no system-level enforcement
+
+AgentKit addresses this by providing:
+- **Enforced entry points**: tasks enter a run/verify flow instead of free-form edits
+- **Structured traceability**: state, decisions, docs, and verification outputs are persisted
+- **Controlled execution**: model calls, tool calls, and file writes pass policy gates
+
+In short: this is an agent governance layer, not a one-off prompt trick.
+
+## Role in a real project
+
+- **Human**: provides goals, constraints, acceptance criteria
+- **Interactive agent**: interprets requirements, prepares task specs, calls AgentKit API
+- **AgentKit runtime**: state machine progression, policy checks, execution dispatch, docs updates
+- **Adapters**: concrete execution bridges (shell/python/LLM gateway/file patch)
+- **CI**: final gatekeeper
+
+## Quick start
 
 ```bash
 pip install -e .
 ```
 
-## Quick Start (CLI)
+### Minimal CLI flow
 
 ```bash
 agentkit-init --target ./MyPipeline --name MyPipeline --profile minimal
@@ -29,74 +44,95 @@ agentkit-run --workspace . --task examples/task.sample.yaml
 agentkit-verify --workspace . --task-id sample-task-001
 ```
 
-## API Enforced Mode
+## API-enforced mode (recommended)
 
-Optional code-generation loop:
-- `llm_http` calls your model gateway and returns structured patches
-- `file_patch` applies writes under `module_rules.allowed_paths` guardrails
+## 1) Configure the API server
 
-1. Enable token enforcement in `configs/runtime.yaml`:
+Edit `configs/runtime.yaml`:
 
 ```yaml
-require_api_token: true
-api_token: dev-agentkit-token
+max_steps: 6
+default_action_type: mock_action
 api_host: 127.0.0.1
 api_port: 8787
+require_api_token: true
+api_token: dev-agentkit-token
 ```
 
-2. Start the API service:
+Field meanings:
+- `api_host` / `api_port`: bind address for AgentKit server
+- `require_api_token`: enforce authenticated API calls
+- `api_token`: server-side token for request authorization (use env-injection in production)
+
+## 2) Start the service
 
 ```bash
 agentkit-serve --workspace .
 ```
 
-3. Drive task execution through API (example):
+Endpoints:
+- `GET /health`
+- `POST /v1/tasks/run`
+- `POST /v1/tasks/verify`
+
+## 3) Call the API
+
+Example script:
 
 ```bash
 python examples/api_enforced_demo.py
 ```
 
-Direct endpoints:
-- `POST /v1/tasks/run` body: `{ "task": "examples/task.sample.yaml" }`
-- `POST /v1/tasks/verify` body: `{ "task_id": "sample-task-001" }`
-- Header: `Authorization: Bearer <api_token>`
+Or call directly:
 
-## Working With Interactive Agents
+```bash
+curl -X POST "http://127.0.0.1:8787/v1/tasks/run" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-agentkit-token" \
+  -d '{"task":"examples/task.sample.yaml"}'
+```
+
+```bash
+curl -X POST "http://127.0.0.1:8787/v1/tasks/verify" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-agentkit-token" \
+  -d '{"task_id":"sample-task-001"}'
+```
+
+## Correct interaction pattern (human <-> agent)
 
 Recommended contract:
-1. Give business requirements to the agent, not direct raw file-edit instructions.
-2. Agent first generates/updates task spec and docs artifacts.
-3. Agent must call `/v1/tasks/run` through `agentkit-serve`.
-4. Agent must call `/v1/tasks/verify` before completion.
-5. CI performs final enforcement.
 
-This turns chat-driven work into an auditable execution chain instead of prompt-only discipline.
-## Enforced execution model
+1. Give business objectives and constraints, not direct raw line-edit instructions.
+2. Require the agent to prepare/update task specs first.
+3. Require execution via `/v1/tasks/run` through `agentkit-serve`.
+4. Require `/v1/tasks/verify` before completion.
+5. Require output with changed files, evidence, risks, rollback notes.
 
-- `agentkit-run` is the CLI runtime task entry
-- `agentkit-verify` is the CLI artifact gate
-- `agentkit-serve` is the API runtime gate with token auth
-- CI should enforce verify as required (workflow included: `.github/workflows/agentkit-ci.yml`)
+Reusable prompt template:
 
-## Task Spec (implementation-driving fields)
+```text
+Execute this request using the AgentKit protocol:
+1) Create/update task spec with affected_files, validation_checklist, rollback_plan, risk_points
+2) Execute through /v1/tasks/run via agentkit-serve
+3) Verify through /v1/tasks/verify
+4) Return changed files, validation evidence, and residual risks
+Do not bypass AgentKit with direct uncontrolled edits.
+```
 
-See `examples/task.sample.yaml`.
+## Code generation loop (LLM -> Patch -> guarded write)
 
-Key fields:
-- `affected_files`
-- `validation_checklist`
-- `rollback_plan`
-- `risk_points`
+You can now run this chain:
+- `llm_http`: call your model gateway and receive structured JSON
+- `file_patch`: apply file writes from structured patch lists
+- `module_rules.allowed_paths`: deny out-of-scope write targets
 
-These fields are persisted and rendered into `docs/generated/task_model.md`.
-
-## Custom tools (Adapters)
-
-Declare skills in `configs/skills_index.yaml`:
+Default skill mapping example (`configs/skills_index.yaml`):
 
 ```yaml
 skills:
   llm_codegen:
+    purpose: call a model API to generate structured code patch proposals
     adapter: llm_http
     static_params:
       endpoint: "http://127.0.0.1:9000/v1/generate"
@@ -104,21 +140,51 @@ skills:
       api_key_env: "AGENTKIT_LLM_API_KEY"
 
   apply_generated_patch:
+    purpose: apply structured patch operations under module rules
     adapter: file_patch
 ```
 
-## Context Selector
+See `examples/task.codegen.sample.yaml` for a starter task spec.
 
-Use `ContextSelector` to control context size and relevance.
+## Policy and safety boundaries
 
-```bash
-python examples/context_selection_demo.py
-```
+Control surfaces:
+- `configs/policy_rules.yaml`
+  - `blocked_action_types`: hard deny
+  - `review_action_types`: require human review branch
+- `configs/module_rules.yaml`
+  - `allowed_paths`: file write whitelist
+- `SimpleValidator`
+  - pre-check: action type and path safety
+  - post-check: execution status
+
+Recommended practice:
+- place high-risk actions in `review_action_types`
+- keep `allowed_paths` narrow
+- enforce `agentkit-verify` in CI
+
+## Artifacts and traceability
+
+After each run:
+- `.agentkit/context/*.json`: context selection reports
+- `.agentkit/state/*.json`: state machine snapshots
+- `.agentkit/runs/*.json`: run reports
+- `docs/generated/*.md`: handoff docs (task_model/decision_log/handoff_note/...)
+
+These artifacts form your execution audit chain.
+
+## Common anti-patterns
+
+- Skipping run/verify and relying only on chat discipline
+- Committing plaintext tokens into repo
+- Setting `allowed_paths` too broad
+- Reviewing chat summaries without checking persisted artifacts
 
 ## Other commands
 
 - `agentkit-migrate`: non-destructive adoption for existing projects
 - `agentkit-apply`: initialize and apply customization spec
+- `python examples/context_selection_demo.py`: context control demo
 
 ## Tests
 
@@ -126,4 +192,4 @@ python examples/context_selection_demo.py
 python -m pytest
 ```
 
-
+Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
