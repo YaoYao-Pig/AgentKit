@@ -7,6 +7,13 @@ from .registry import DocumentRegistry
 from .template_loader import MarkdownTemplateLoader
 
 
+def _is_ignored_template(path: Path) -> bool:
+    # Ignore migration sidecars such as decision_log.starter.md
+    # to avoid duplicate document ids during bootstrap/adoption flows.
+    name = path.name.lower()
+    return ".starter." in name
+
+
 def load_registry_from_templates(
     template_dir: str,
     output_path_overrides: dict[str, str] | None = None,
@@ -17,6 +24,8 @@ def load_registry_from_templates(
 
     registry = DocumentRegistry()
     for path in sorted(Path(template_dir).glob("*.md")):
+        if _is_ignored_template(path):
+            continue
         template = loader.load(str(path))
         metadata = template.metadata
         definition = DocumentDefinition(
