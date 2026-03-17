@@ -180,6 +180,31 @@ These artifacts form your execution audit chain.
 - Setting `allowed_paths` too broad
 - Reviewing chat summaries without checking persisted artifacts
 
+## Cleanup for previously adopted projects
+
+If you have run AgentKit multiple times in the same repository, clean old artifacts before re-running.
+
+Safe default cleanup (recommended): remove runtime artifacts under `.agentkit/` only:
+
+```bash
+agentkit-clean --target . --scope runtime
+```
+
+Scopes:
+- `runtime`: remove `.agentkit/` (default)
+- `docs`: remove generated files in `docs/generated/` except `.gitkeep`
+- `migration`: remove `*.starter.*` and `docs/MIGRATION_REPORT.md`
+- `all`: all scopes above
+
+Preview first without deleting:
+
+```bash
+agentkit-clean --target . --scope all --dry-run
+```
+
+Notes:
+- The command is designed to remove AgentKit artifacts, not business source code.
+- Still recommended to run `--dry-run` before actual deletion.
 ## Other commands
 
 - `agentkit-migrate`: non-destructive adoption for existing projects
@@ -232,4 +257,5 @@ python -m pytest
 ```
 
 Baseline includes schema, document rendering, registry loading, runtime happy/replan paths, API server, and codegen-flow tests.
+
 

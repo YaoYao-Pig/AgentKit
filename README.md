@@ -362,6 +362,31 @@ skills:
 - 误区 4：只看聊天总结，不看产物文件。
   - 结果：交接困难、复盘困难。
 
+## 旧项目清理（AgentKit 产物）
+
+如果你之前在同一个仓库里多次试用 AgentKit，建议在重跑前先清理历史产物。
+
+默认安全清理（推荐）：仅清理运行状态目录 `.agentkit/`：
+
+```bash
+agentkit-clean --target . --scope runtime
+```
+
+常用范围：
+- `runtime`：清理 `.agentkit/`（默认）
+- `docs`：清理 `docs/generated/` 下除 `.gitkeep` 外的文件
+- `migration`：清理 `*.starter.*` 和 `docs/MIGRATION_REPORT.md`
+- `all`：以上全部
+
+先预览不删除：
+
+```bash
+agentkit-clean --target . --scope all --dry-run
+```
+
+说明：
+- 该命令设计为“只清理 AgentKit 产物”，不主动删除你的业务源码。
+- 仍建议先 `--dry-run` 看一眼，再执行真实删除。
 ## 其他命令
 
 - `agentkit-migrate`：已有项目非破坏接入。
@@ -414,6 +439,7 @@ python -m pytest
 ```
 
 当前基线包含：schema、文档渲染、注册表加载、runtime happy path/replan、API 服务与 codegen flow 测试。
+
 
 
 

@@ -16,6 +16,7 @@ dependencies = [
 agentkit-init = "agentkit.starter.cli:main"
 agentkit-apply = "agentkit.starter.apply_cli:main"
 agentkit-migrate = "agentkit.starter.migrate_cli:main"
+agentkit-clean = "agentkit.starter.clean_cli:main"
 agentkit-run = "agentkit.runner.run_cli:main"
 agentkit-verify = "agentkit.runner.verify_cli:main"
 agentkit-serve = "agentkit.runner.serve_cli:main"

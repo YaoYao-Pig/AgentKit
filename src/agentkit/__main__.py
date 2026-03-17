@@ -6,6 +6,7 @@ from pathlib import Path
 from agentkit.runner.api import run_task, verify_task_run
 from agentkit.runner.serve_cli import run_server
 from agentkit.starter.apply import apply_starter_project
+from agentkit.starter.clean import clean_project
 from agentkit.starter.init import initialize_starter_project
 from agentkit.starter.migrate import migrate_existing_project
 from agentkit.starter.profiles import PROFILES
@@ -33,6 +34,11 @@ def main() -> None:
     p_migrate.add_argument("--name")
     p_migrate.add_argument("--profile", choices=sorted(PROFILES.keys()), default="minimal")
     p_migrate.add_argument("--no-sidecars", action="store_true")
+
+    p_clean = sub.add_parser("clean", help="Clean AgentKit generated artifacts")
+    p_clean.add_argument("--target", default=".")
+    p_clean.add_argument("--scope", choices=["runtime", "docs", "migration", "all"], default="runtime")
+    p_clean.add_argument("--dry-run", action="store_true")
 
     p_run = sub.add_parser("run", help="Run a task through AgentKit pipeline")
     p_run.add_argument("--task", required=True)
@@ -74,6 +80,9 @@ def main() -> None:
             create_sidecars=not args.no_sidecars,
         )
         print(result)
+    elif args.command == "clean":
+        result = clean_project(target_dir=Path(args.target), scope=args.scope, dry_run=args.dry_run)
+        print(result)
     elif args.command == "run":
         result = run_task(workspace=args.workspace, task_file=args.task)
         print(result)
@@ -97,3 +106,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
